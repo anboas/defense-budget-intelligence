@@ -313,7 +313,12 @@ assert.equal(departmentHierarchy?.childIds?.length, 23, "Department of War must 
 assert.ok(departmentHierarchy.childIds.includes(cyberCommand.id), "United States Cyber Command must remain a direct reviewed department component");
 const departmentWork = linkedIntelligence.indices?.byEntity?.[departmentOfWar.id]?.workSummary;
 assert.ok(departmentWork?.opportunities >= 400 && departmentWork?.awards >= 400 && departmentWork?.accounts >= 30 && departmentWork?.obligatedAmount > 700_000_000_000, "Department drill-down must publish useful descendant work, award, account, and obligation totals");
-assert.ok(linkedIntelligence.indices?.byEntity?.[navair.id]?.workSummary?.directOpportunities >= 40, "NAVAIR must retain exact direct-work coverage in its hierarchy summary");
+const navairWorkIndex = linkedIntelligence.indices?.byEntity?.[navair.id];
+assert.ok(navairWorkIndex?.workSummary?.directOpportunities >= 40, "NAVAIR must retain exact direct-work coverage in its hierarchy summary");
+assert.ok(navairWorkIndex?.workSummary?.directAwards >= 30 && navairWorkIndex?.workSummary?.directAccounts >= 10 && navairWorkIndex?.workSummary?.directObligatedAmount > 200_000_000_000, "NAVAIR must distinguish exact direct award, account, and obligation coverage from its subtree rollup");
+assert.ok(navairWorkIndex?.workHighlights?.direct?.activityIds?.length > 0 && navairWorkIndex?.workHighlights?.direct?.activityIds?.length <= 8, "Direct organization work highlights must remain useful and bounded");
+assert.ok(navairWorkIndex?.workHighlights?.subtree?.awardIds?.every((id) => linkedIntelligence.nodes?.[id]?.type === "award"), "Organization work highlights must retain exact graph award identities");
+assert.ok(navairWorkIndex?.workHighlights?.subtree?.accountIds?.every((id) => linkedIntelligence.nodes?.[id]?.type === "federal-account"), "Organization work highlights must retain exact graph account identities");
 assert.ok(linkedHierarchy.some((relation) => relation.from === navair.id && relation.to === navy.id), "NAVAIR must retain its reviewed Department of the Navy parent");
 assert.ok(linkedHierarchy.some((relation) => relation.from === niwcPacific.id && relation.to === navwar.id), "NIWC Pacific must retain its reviewed NAVWAR parent");
 assert.ok(linkedHierarchy.some((relation) => relation.from === niwcAtlantic.id && relation.to === navwar.id), "NIWC Atlantic must retain its reviewed NAVWAR parent");

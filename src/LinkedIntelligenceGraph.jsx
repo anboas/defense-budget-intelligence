@@ -9,6 +9,7 @@ import "./control-graph.css";
 import "./LinkedIntelligenceGraph.css";
 
 const OrganizationStructureControls = lazy(() => import("./OrganizationStructureControls.jsx"));
+const OrganizationWorkDistribution = lazy(() => import("./OrganizationWorkDistribution.jsx"));
 
 const ROOTABLE_TYPES = new Set(["organization", "federal-account", "defense-program", "program-office", "activity", "award"]);
 const LENSES = new Set(["structure", "overview", "hierarchy", "work", "money", "organization"]);
@@ -38,6 +39,17 @@ function money(value) {
   if (Math.abs(amount) >= 1_000_000_000) return `$${(amount / 1_000_000_000).toFixed(1)}B`;
   if (Math.abs(amount) >= 1_000_000) return `$${(amount / 1_000_000).toFixed(1)}M`;
   return `$${Math.round(amount).toLocaleString()}`;
+}
+
+function scopedWorkSummary(summary, scope) {
+  if (!summary) return null;
+  if (scope !== "direct") return summary;
+  return {
+    opportunities: Number(summary.directOpportunities || 0),
+    awards: Number(summary.directAwards || 0),
+    accounts: Number(summary.directAccounts || 0),
+    obligatedAmount: Number(summary.directObligatedAmount || 0),
+  };
 }
 
 function lensAllows(lens, category) {
@@ -141,8 +153,16 @@ function compactPathLayout({ nodes = [] }) {
   };
 }
 
-function lensItems(summary, hasHierarchy) {
+function lensItems(summary, hasHierarchy, structureMode = false) {
   const count = (categories) => categories.reduce((total, category) => total + (summary.neighborCounts[category] || 0), 0);
+  if (structureMode) return [
+    ["structure", "Structure"],
+    ["overview", `Direct links ${count(["hierarchy", "work", "money", "program"])}`],
+    ["hierarchy", `Direct hierarchy ${count(["hierarchy", "program"])}`],
+    ["work", `Direct work ${count(["work"])}`],
+    ["money", `Direct money ${count(["money"])}`],
+    ["organization", `Direct people & places ${count(["people", "places"])}`],
+  ];
   return [
     ...(hasHierarchy ? [["structure", "Structure"]] : []),
     ["overview", `Overview ${count(["hierarchy", "work", "money", "program"])}`],
@@ -162,7 +182,7 @@ const STRUCTURE_GROUPS = new Map([
 ]);
 const MAX_STRUCTURE_ROWS = 12;
 
-function organizationStructure(index, rootId, { depth = "2", group = "services", status = "current", workOnly = false } = {}) {
+function organizationStructure(index, rootId, { depth = "2", group = "services", status = "current", workOnly = false, workScope = "subtree" } = {}) {
   const root = index.nodes[rootId];
   const rootHierarchy = index.indices?.byEntity?.[rootId]?.hierarchy;
   if (!root || !rootHierarchy) return { nodes: [], relations: [], total: 0, matching: 0 };
@@ -182,7 +202,7 @@ function organizationStructure(index, rootId, { depth = "2", group = "services",
   }
   const matchesGroup = STRUCTURE_GROUPS.get(group) || STRUCTURE_GROUPS.get("all");
   const matchesStatus = (node) => status === "all" || (status === "current" ? String(node.status || "current").startsWith("current") : node.status === status);
-  const matchesWork = (id) => !workOnly || Number(index.indices?.byEntity?.[id]?.workSummary?.opportunities || 0) > 0;
+  const matchesWork = (id) => !workOnly || Number(index.indices?.byEntity?.[id]?.workSummary?.[workScope === "direct" ? "directOpportunities" : "opportunities"] || 0) > 0;
   const matched = [...levels.keys()].filter((id) => id !== rootId && matchesGroup(index.nodes[id]) && matchesStatus(index.nodes[id]) && matchesWork(id));
   const visible = new Set([rootId]);
   for (const id of matched) {
@@ -226,11 +246,12 @@ function structureLayout({ nodes = [] }) {
   return { coordinateSpace: "percent", layout: "reviewed-organization-structure", nodes: nodes.map((node) => ({ id: node.id, x: node.x, y: node.y })) };
 }
 
-function workDetail(summary, overlay) {
+function workDetail(summary, overlay, scope = "subtree") {
   if (!summary || overlay === "none") return "";
-  if (overlay === "opportunities") return `${Number(summary.opportunities || 0).toLocaleString()} opportunities`;
-  if (overlay === "awards") return `${Number(summary.awards || 0).toLocaleString()} awards`;
-  return money(summary.obligatedAmount || 0);
+  const direct = scope === "direct";
+  if (overlay === "opportunities") return `${Number(summary[direct ? "directOpportunities" : "opportunities"] || 0).toLocaleString()} opportunities`;
+  if (overlay === "awards") return `${Number(summary[direct ? "directAwards" : "awards"] || 0).toLocaleString()} awards`;
+  return money(summary[direct ? "directObligatedAmount" : "obligatedAmount"] || 0);
 }
 
 function selectRelations(index, rootId, lens) {
@@ -266,6 +287,7 @@ export default function LinkedIntelligenceGraph({ index, rootId, targetId = "", 
   const [structureStatus, setStructureStatus] = useState(["current", "all"].includes(initialStructure.status) ? initialStructure.status : "current");
   const [workOnly, setWorkOnly] = useState(Boolean(initialStructure.workOnly));
   const [workOverlay, setWorkOverlay] = useState(["none", "opportunities", "awards", "obligations"].includes(initialStructure.workOverlay) ? initialStructure.workOverlay : "opportunities");
+  const [workScope, setWorkScope] = useState(["direct", "subtree"].includes(initialStructure.workScope) ? initialStructure.workScope : "subtree");
   const [selectedId, setSelectedId] = useState(canonicalTargetId || canonicalRootId);
   const [compactTrace, setCompactTrace] = useState(() => typeof window !== "undefined" && window.matchMedia("(max-width: 760px)").matches);
   useEffect(() => {
@@ -275,7 +297,7 @@ export default function LinkedIntelligenceGraph({ index, rootId, targetId = "", 
     query.addEventListener("change", update);
     return () => query.removeEventListener("change", update);
   }, []);
-  const structure = useMemo(() => organizationStructure(index, canonicalRootId, { depth: structureDepth, group: structureGroup, status: structureStatus, workOnly }), [canonicalRootId, index, structureDepth, structureGroup, structureStatus, workOnly]);
+  const structure = useMemo(() => organizationStructure(index, canonicalRootId, { depth: structureDepth, group: structureGroup, status: structureStatus, workOnly, workScope }), [canonicalRootId, index, structureDepth, structureGroup, structureStatus, workOnly, workScope]);
   const structureCoordinates = useMemo(() => structurePositions(structure.nodes), [structure.nodes]);
   const structureMode = lens === "structure" && hasHierarchy;
   const relations = useMemo(() => structureMode ? structure.relations : selectRelations(index, canonicalRootId, lens), [canonicalRootId, index, lens, structure, structureMode]);
@@ -301,13 +323,13 @@ export default function LinkedIntelligenceGraph({ index, rootId, targetId = "", 
     if (structureMode) return structure.nodes.map(({ node: item, depth }) => {
       const summary = index.indices?.byEntity?.[item.id]?.workSummary;
       const coordinates = structureCoordinates.get(item.id) || { x: 50, y: 50 };
-      return { id: item.id, kind: item.type, label: item.label, meta: [compactRelationship(item.tier || item.kind), workDetail(summary, workOverlay)].filter(Boolean).join(" · "), description: nodeDetail(item), primary: item.id === canonicalRootId, relation: depth ? "part of reviewed structure" : "structure root", x: coordinates.x, y: coordinates.y };
+      return { id: item.id, kind: item.type, label: item.label, meta: [compactRelationship(item.tier || item.kind), workDetail(summary, workOverlay, workScope)].filter(Boolean).join(" · "), description: nodeDetail(item), primary: item.id === canonicalRootId, relation: depth ? "part of reviewed structure" : "structure root", x: coordinates.x, y: coordinates.y };
     });
     return [root, ...neighbors.map((item) => item.node)].filter(Boolean).map((item) => {
       const related = neighbors.find((candidate) => candidate.node.id === item.id);
       return { id: item.id, kind: item.type, label: short(item.label), meta: intelligenceTypeLabel(item.type), description: nodeDetail(item), primary: item.id === canonicalRootId, relation: related ? relationLabel(related.relation, canonicalRootId) : "graph root", data: { category: related ? relationCategory(related.relation.type) : "root", direction: related?.relation?.from === canonicalRootId ? "outbound" : "inbound" } };
     });
-  }, [canonicalRootId, canonicalTargetId, connectionPath, index.indices?.byEntity, index.nodes, neighbors, root, structure.nodes, structureCoordinates, structureMode, traceMode, workOverlay]);
+  }, [canonicalRootId, canonicalTargetId, connectionPath, index.indices?.byEntity, index.nodes, neighbors, root, structure.nodes, structureCoordinates, structureMode, traceMode, workOverlay, workScope]);
   const graphEdges = useMemo(() => {
     if (traceMode) return (connectionPath?.relations || []).map((relation, indexValue) => ({ id: relation.id, from: connectionPath.nodeIds[indexValue], to: connectionPath.nodeIds[indexValue + 1], type: relationCategory(relation.type), label: relationLabel(relation, connectionPath.nodeIds[indexValue]), evidence: relation.evidence?.basis }));
     if (structureMode) return structure.relations.map((relation) => ({ id: relation.id, from: relation.to, to: relation.from, type: "hierarchy", label: compactRelationship(relation.attributes?.relationshipClass || "contains"), evidence: relation.evidence?.basis }));
@@ -324,18 +346,19 @@ export default function LinkedIntelligenceGraph({ index, rootId, targetId = "", 
   const timelineCount = index.indices?.byEntity?.[selected?.id]?.timelineActivityIds?.length || 0;
   const rootTimelineCount = index.indices?.byEntity?.[canonicalRootId]?.timelineActivityIds?.length || 0;
   const selectedRoute = selected ? canonicalRoute(selected) : "";
-  const selectedWork = index.indices?.byEntity?.[selected?.id]?.workSummary;
+  const selectedWork = scopedWorkSummary(index.indices?.byEntity?.[selected?.id]?.workSummary, structureMode ? workScope : "subtree");
   const selectedSourceUrl = selectedRelation?.evidence?.sourceUrl || selected?.hierarchySourceUrl || "";
   const selectNode = ({ nodeId }) => setSelectedId(nodeId);
   const selectEdge = ({ to }) => setSelectedId(to);
   const changeLens = (next) => { if (LENSES.has(next)) { setLens(next); setSelectedId(canonicalRootId); } };
   const changeStructure = (key, value) => {
-    const next = { depth: structureDepth, group: structureGroup, status: structureStatus, workOnly, workOverlay, [key]: value };
+    const next = { depth: structureDepth, group: structureGroup, status: structureStatus, workOnly, workOverlay, workScope, [key]: value };
     if (key === "depth") setStructureDepth(value);
     if (key === "group") setStructureGroup(value);
     if (key === "status") setStructureStatus(value);
     if (key === "workOnly") setWorkOnly(value);
     if (key === "workOverlay") setWorkOverlay(value);
+    if (key === "workScope") setWorkScope(value);
     onStructureChange?.(next);
   };
   const widestStructureLane = structureMode ? Math.max(1, ...Object.values(structure.nodes.reduce((groups, row) => ({ ...groups, [row.depth]: Number(groups[row.depth] || 0) + 1 }), {})).map((count) => Math.min(MAX_STRUCTURE_ROWS, count))) : 0;
@@ -351,10 +374,10 @@ export default function LinkedIntelligenceGraph({ index, rootId, targetId = "", 
   if (!root) return null;
   return <section className="linked-intelligence" data-linked-intelligence-graph data-root-type={root.type} data-root-id={canonicalRootId} data-lens={traceMode ? "connection" : lens} data-graph-mode={traceMode ? "connection" : "neighborhood"} data-path-orientation={traceMode ? (compactTrace ? "vertical" : "horizontal") : undefined} data-connection-hops={connectionPath?.hops ?? "none"}>
     <header className="linked-intelligence__header">
-      {traceMode ? <div><small>Connection trace</small><strong>{connectionPath ? `${connectionPath.hops} evidence-backed ${connectionPath.hops === 1 ? "step" : "steps"}` : "No retained path within four steps"}</strong><span>{root.label} → {target.label}</span></div> : structureMode ? <div><small>Reviewed structure</small><strong>{structure.nodes.length} of {structure.matching.toLocaleString()} matching organizations shown</strong><span>{structure.total.toLocaleString()} reviewed descendants · {rootTimelineCount.toLocaleString()} linked Timeline records</span></div> : <div><small>Linked intelligence</small><strong>{neighbors.length} of {availableInLens.toLocaleString()} linked entities shown</strong><span>{coverage.relationships.toLocaleString()} retained relationships · {rootTimelineCount.toLocaleString()} Timeline records</span></div>}
-      {!traceMode ? <ControlTabs className="linked-intelligence__lenses" ariaLabel="Choose relationship lens" activeId={lens} onSelect={changeLens} items={lensItems(coverage, hasHierarchy)} /> : null}
+      {traceMode ? <div><small>Connection trace</small><strong>{connectionPath ? `${connectionPath.hops} evidence-backed ${connectionPath.hops === 1 ? "step" : "steps"}` : "No retained path within four steps"}</strong><span>{root.label} → {target.label}</span></div> : structureMode ? <div><small>Reviewed structure</small><strong>{Math.max(0, structure.nodes.length - 1)} of {structure.matching.toLocaleString()} matching descendants shown</strong><span>Root included · {structure.total.toLocaleString()} reviewed descendants · {rootTimelineCount.toLocaleString()} linked Timeline records</span></div> : <div><small>Linked intelligence</small><strong>{neighbors.length} of {availableInLens.toLocaleString()} linked entities shown</strong><span>{coverage.relationships.toLocaleString()} retained relationships · {rootTimelineCount.toLocaleString()} Timeline records</span></div>}
+      {!traceMode ? <ControlTabs className="linked-intelligence__lenses" ariaLabel="Choose relationship lens" activeId={lens} onSelect={changeLens} items={lensItems(coverage, hasHierarchy, structureMode)} /> : null}
     </header>
-    {structureMode ? <Suspense fallback={null}><OrganizationStructureControls depth={structureDepth} group={structureGroup} status={structureStatus} workOnly={workOnly} workOverlay={workOverlay} onDepthChange={(value) => changeStructure("depth", value)} onGroupChange={(value) => changeStructure("group", value)} onStatusChange={(value) => changeStructure("status", value)} onWorkOnlyChange={(value) => changeStructure("workOnly", value)} onWorkOverlayChange={(value) => changeStructure("workOverlay", value)} /></Suspense> : null}
+    {structureMode ? <Suspense fallback={null}><OrganizationStructureControls depth={structureDepth} group={structureGroup} status={structureStatus} workOnly={workOnly} workOverlay={workOverlay} workScope={workScope} onDepthChange={(value) => changeStructure("depth", value)} onGroupChange={(value) => changeStructure("group", value)} onStatusChange={(value) => changeStructure("status", value)} onWorkOnlyChange={(value) => changeStructure("workOnly", value)} onWorkOverlayChange={(value) => changeStructure("workOverlay", value)} onWorkScopeChange={(value) => changeStructure("workScope", value)} /></Suspense> : null}
     <ControlGraph
       className="linked-intelligence__graph"
       style={{ "--linked-intelligence-height": `${graphHeight}px` }}
@@ -376,6 +399,7 @@ export default function LinkedIntelligenceGraph({ index, rootId, targetId = "", 
       data-linked-graph-canvas
       data-node-count={graphNodes.length}
     />
+    {structureMode && workOverlay !== "none" ? <Suspense fallback={null}><OrganizationWorkDistribution index={index} rows={structure.nodes} selectedId={visibleSelectedId} overlay={workOverlay} scope={workScope} onSelect={setSelectedId} /></Suspense> : null}
     {traceMode ? <section className="linked-intelligence__path" aria-label="Connection evidence path" data-connection-path>
       {connectionPath ? <ol>{connectionPath.relations.map((relation, indexValue) => {
         const from = index.nodes[connectionPath.nodeIds[indexValue]];
@@ -390,7 +414,7 @@ export default function LinkedIntelligenceGraph({ index, rootId, targetId = "", 
     <article className="linked-intelligence__inspector" data-linked-graph-inspector>
       <div className="linked-intelligence__identity"><small>{intelligenceTypeLabel(selected.type)}</small><strong>{selected.label}</strong><span>{nodeDetail(selected)}</span></div>
       {selectedRelation ? <div className="linked-intelligence__evidence"><ControlStatusBadge category="evidence" status={selectedRelation.evidence?.confidence || "source_declared"}>{compactRelationship(selectedRelation.evidence?.confidence)}</ControlStatusBadge><span><strong>{relationLabel(selectedRelation, relationOriginId)}</strong> · {compactRelationship(selectedRelation.evidence?.basis)} · {compactRelationship(selectedRelation.evidence?.reviewState)}</span>{selectedRelation.validity?.status ? <em>{compactRelationship(selectedRelation.validity.status)} · review by {selectedRelation.validity.reviewBy || "not scheduled"}</em> : null}</div> : <p>{traceMode ? "The trace prefers the fewest retained steps, then stronger evidence and less ambiguous intermediate hubs." : "This entity anchors the visible, bounded relationship neighborhood. Switch lenses to change the relationship class without changing the root."}</p>}
-      {selectedWork ? <div className="linked-intelligence__work-summary" aria-label="Selected organization linked work"><span><strong>{selectedWork.opportunities.toLocaleString()}</strong> opportunities</span><span><strong>{selectedWork.awards.toLocaleString()}</strong> awards</span><span><strong>{selectedWork.accounts.toLocaleString()}</strong> accounts</span><span><strong>{money(selectedWork.obligatedAmount)}</strong> obligations</span></div> : null}
+      {selectedWork ? <div className="linked-intelligence__work-summary" aria-label={`Selected organization ${structureMode && workScope === "direct" ? "direct" : "linked"} work`}><span><strong>{selectedWork.opportunities.toLocaleString()}</strong> opportunities</span><span><strong>{selectedWork.awards.toLocaleString()}</strong> awards</span><span><strong>{selectedWork.accounts.toLocaleString()}</strong> accounts</span><span><strong>{money(selectedWork.obligatedAmount)}</strong> obligations</span></div> : null}
       <nav className="if-button-group" aria-label="Selected linked entity actions">
         {selected.id !== canonicalRootId && ROOTABLE_TYPES.has(selected.type) ? <button type="button" className="if-btn if-btn--primary" onClick={() => onRootChange(selected)}><Network size={15} />Explore from here</button> : null}
         {timelineCount ? <a className="if-btn if-btn--secondary" href={timelineRoute("", { scope: "entity", entityType: selected.type, entityId: selected.id, entityLabel: selected.label })}><CalendarClock size={15} />Timeline <small>{timelineCount.toLocaleString()}</small></a> : null}

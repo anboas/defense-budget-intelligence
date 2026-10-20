@@ -1982,6 +1982,25 @@ for (const relation of linkedRelations) {
   if (relation.type === "activity-awarded-as") awardIdsByActivity.set(relation.from, [...(awardIdsByActivity.get(relation.from) || []), relation.to]);
   if (relation.type === "award-funded-by-account") accountIdsByAward.set(relation.from, [...(accountIdsByAward.get(relation.from) || []), relation.to]);
 }
+const WORK_HIGHLIGHT_LIMIT = 8;
+function rankedWorkIds(ids, type) {
+  return [...new Set(ids)].sort((left, right) => {
+    const leftNode = linkedNodeById.get(left);
+    const rightNode = linkedNodeById.get(right);
+    if (type === "award" || type === "federal-account") {
+      const amountDifference = Number(rightNode?.obligatedAmount || 0) - Number(leftNode?.obligatedAmount || 0);
+      if (amountDifference) return amountDifference;
+    }
+    return String(leftNode?.label || left).localeCompare(String(rightNode?.label || right));
+  }).slice(0, WORK_HIGHLIGHT_LIMIT);
+}
+function compactWorkHighlights(activityIds, awardIds, accountIds) {
+  return {
+    activityIds: rankedWorkIds(activityIds, "activity"),
+    awardIds: rankedWorkIds(awardIds, "award"),
+    accountIds: rankedWorkIds(accountIds, "federal-account"),
+  };
+}
 for (const node of linkedNodeById.values()) {
   let activityIds = [];
   if (node.type === "activity") activityIds = [node.id];
@@ -1993,6 +2012,8 @@ for (const node of linkedNodeById.values()) {
     const descendantIds = reviewedDescendants(node.id);
     const directActivityIds = [...new Set(directActivityIdsByOrganization.get(node.id) || [])];
     const subtreeActivityIds = [...new Set(descendantIds.flatMap((organizationId) => directActivityIdsByOrganization.get(organizationId) || []))];
+    const directAwardIds = [...new Set(directActivityIds.flatMap((activityId) => awardIdsByActivity.get(activityId) || []))];
+    const directAccountIds = [...new Set(directAwardIds.flatMap((awardId) => accountIdsByAward.get(awardId) || []))];
     const awardIds = [...new Set(subtreeActivityIds.flatMap((activityId) => awardIdsByActivity.get(activityId) || []))];
     const accountIds = [...new Set(awardIds.flatMap((awardId) => accountIdsByAward.get(awardId) || []))];
     linkedByEntity[node.id].hierarchy = {
@@ -2003,16 +2024,23 @@ for (const node of linkedNodeById.values()) {
     };
     linkedByEntity[node.id].workSummary = {
       directOpportunities: directActivityIds.length,
+      directAwards: directAwardIds.length,
+      directAccounts: directAccountIds.length,
+      directObligatedAmount: directAwardIds.reduce((sum, awardId) => sum + Number(linkedNodeById.get(awardId)?.obligatedAmount || 0), 0),
       opportunities: subtreeActivityIds.length,
       awards: awardIds.length,
       accounts: accountIds.length,
       obligatedAmount: awardIds.reduce((sum, awardId) => sum + Number(linkedNodeById.get(awardId)?.obligatedAmount || 0), 0),
     };
+    linkedByEntity[node.id].workHighlights = {
+      direct: compactWorkHighlights(directActivityIds, directAwardIds, directAccountIds),
+      subtree: compactWorkHighlights(subtreeActivityIds, awardIds, accountIds),
+    };
   }
 }
 for (const [aliasId, canonicalId] of canonicalOrganizationByEntityId) {
   if (aliasId === canonicalId || !linkedByEntity[canonicalId]) continue;
-  linkedByEntity[aliasId] = { canonicalId, relationIds: linkedByEntity[canonicalId].relationIds, timelineActivityIds: linkedByEntity[canonicalId].timelineActivityIds, hierarchy: linkedByEntity[canonicalId].hierarchy, workSummary: linkedByEntity[canonicalId].workSummary };
+  linkedByEntity[aliasId] = { canonicalId, relationIds: linkedByEntity[canonicalId].relationIds, timelineActivityIds: linkedByEntity[canonicalId].timelineActivityIds, hierarchy: linkedByEntity[canonicalId].hierarchy, workSummary: linkedByEntity[canonicalId].workSummary, workHighlights: linkedByEntity[canonicalId].workHighlights };
 }
 const linkedIntelligenceIndex = {
   metadata: {
