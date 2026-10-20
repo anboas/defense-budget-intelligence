@@ -96,7 +96,7 @@ export default function SiteHeader({ activeTab, activeTitle, routeHash }) {
   }
 
   function ownedViewHref(view) {
-    if (context.workspace?.id !== "opportunities" || view.tabId !== "spend") return view.href;
+    if (context.workspace?.id !== "opportunities" || activeTab !== "spend" || view.tabId !== "spend") return view.href;
     const current = new URLSearchParams(String(routeHash || "").split("?")[1] || "");
     const target = new URLSearchParams(String(view.href).split("?")[1] || "");
     current.set("spendView", target.get("spendView") || "table");
