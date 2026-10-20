@@ -1165,13 +1165,26 @@ try {
   const workspaceTasks = page.locator('[data-universal-intelligence-workspace][data-workspace-tab="tasks"]');
   await workspaceTasks.waitFor();
   const commandRail = workspaceTasks.locator("[data-opportunity-command-rail]");
+  await commandRail.waitFor();
   assert.equal(await commandRail.count(), 1, "The canonical Actions tab should own pursuit controls exactly once");
+  assert.equal(await workspaceTasks.locator(".universal-workspace__context").count(), 0, "Actions should not retain a bottom-left context rail beside its primary work surface");
+  const actionPlanPanel = commandRail.locator("[data-action-plan-panel]");
+  const pursuitSetupPanel = commandRail.locator("[data-pursuit-setup-panel]");
+  assert.equal(await actionPlanPanel.count(), 1, "Actions should expose one primary action-plan panel");
+  assert.equal(await pursuitSetupPanel.count(), 1, "Actions should expose one secondary pursuit-setup panel");
+  const pursuitLayout = await commandRail.evaluate((node) => {
+    const actionPlan = node.querySelector("[data-action-plan-panel]")?.getBoundingClientRect();
+    const setup = node.querySelector("[data-pursuit-setup-panel]")?.getBoundingClientRect();
+    return { actionPlan: actionPlan ? { left: actionPlan.left, top: actionPlan.top, width: actionPlan.width } : null, setup: setup ? { left: setup.left, top: setup.top, width: setup.width } : null };
+  });
+  assert.ok(pursuitLayout.actionPlan.width >= pursuitLayout.setup.width * 1.5, `Action plan should own materially more desktop width than Pursuit setup: ${JSON.stringify(pursuitLayout)}`);
+  assert.ok(pursuitLayout.actionPlan.left < pursuitLayout.setup.left && Math.abs(pursuitLayout.actionPlan.top - pursuitLayout.setup.top) <= 1, `Pursuit setup should be a right-side peer, not a wrapper or bottom-left rail: ${JSON.stringify(pursuitLayout)}`);
+  assert.equal(await actionPlanPanel.locator("summary").count(), 0, "The primary action plan should remain visible without a Hide/Review disclosure control");
   await commandRail.getByRole("button", { name: /^Stage:/i }).click();
   await page.getByRole("option", { name: "Capture", exact: true }).click();
   await chooseControlSelect(page, "Owner", "Workspace owner");
   await chooseControlSelect(page, "Next action", "Confirm customer discovery meeting");
   await commandRail.getByLabel("Checkpoint").fill("2026-10-20");
-  await commandRail.locator("[data-pursuit-tasks] > summary").click();
   await commandRail.getByRole("button", { name: "Add action", exact: true }).click();
   await commandRail.getByLabel("Action", { exact: true }).fill("Prepare capture brief");
   await chooseControlSelect(page, "Action owner", "Workspace owner");
@@ -3217,6 +3230,17 @@ try {
   await mobile.waitForSelector('[data-universal-intelligence-workspace][data-workspace-tab="overview"]');
   assert.match(decodeURIComponent(new URL(mobile.url()).hash), /\/intelligence\/workspace\?entityType=activity.*entityId=/, "Mobile Timeline titles should open the canonical intelligence workspace");
   assert.equal(await mobile.locator("[data-record-lifecycle]").count(), 1, "The mobile intelligence workspace should retain the linked lifecycle");
+  await mobile.locator(".universal-workspace__tabs").getByRole("button", { name: "Actions", exact: true }).tap();
+  const mobileActionsWorkspace = mobile.locator('[data-universal-intelligence-workspace][data-workspace-tab="tasks"]');
+  await mobileActionsWorkspace.waitFor();
+  const mobilePursuitLayout = await mobileActionsWorkspace.locator("[data-opportunity-command-rail]").evaluate((node) => {
+    const actionPlan = node.querySelector("[data-action-plan-panel]")?.getBoundingClientRect();
+    const setup = node.querySelector("[data-pursuit-setup-panel]")?.getBoundingClientRect();
+    return { actionPlan: actionPlan ? { top: actionPlan.top, left: actionPlan.left, right: actionPlan.right, width: actionPlan.width } : null, setup: setup ? { top: setup.top, left: setup.left, right: setup.right, width: setup.width } : null, viewportWidth: innerWidth };
+  });
+  assert.ok(mobilePursuitLayout.actionPlan.top < mobilePursuitLayout.setup.top, `Mobile Actions should keep Action plan before Pursuit setup: ${JSON.stringify(mobilePursuitLayout)}`);
+  assert.ok(mobilePursuitLayout.actionPlan.left >= 0 && mobilePursuitLayout.actionPlan.right <= mobilePursuitLayout.viewportWidth && mobilePursuitLayout.setup.left >= 0 && mobilePursuitLayout.setup.right <= mobilePursuitLayout.viewportWidth, `Mobile action and setup panels should remain inside the viewport: ${JSON.stringify(mobilePursuitLayout)}`);
+  assert.equal(await mobileActionsWorkspace.locator(".universal-workspace__context").count(), 0, "Mobile Actions should not repeat the context rail above its primary work surface");
   await mobile.getByRole("button", { name: "Connections", exact: true }).click();
   await mobile.locator('[data-universal-intelligence-workspace][data-workspace-tab="connections"] [data-connected-visual-analysis]').waitFor();
   const mobileVisual = mobile.locator('[data-universal-intelligence-workspace] [data-connected-visual-analysis]');
