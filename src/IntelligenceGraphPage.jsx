@@ -1,10 +1,11 @@
-import { lazy, Suspense, useEffect, useMemo, useState } from "react";
+import { Fragment, lazy, Suspense, useEffect, useMemo, useState } from "react";
 import { ArrowLeft, CalendarClock, Network, Waypoints, X } from "lucide-react";
-import { ControlAsyncState, ControlAutocomplete, ControlPopover, ControlStatusBadge } from "control-surface-ui/react";
+import { ControlAsyncState, ControlAutocomplete, ControlMenu, ControlPopover, ControlStatusBadge } from "control-surface-ui/react";
 import ControlWorkbenchHeader from "./WorkbenchHeader.jsx";
 import { intelligenceGraphRoute, timelineRoute } from "./cross-surface-routes.js";
 import { loadLinkedIntelligence } from "./intelligence-graph.js";
 import { intelligenceTypeLabel, loadIntelligenceSearchIndex } from "./intelligence-search.js";
+import { reviewedHierarchyPeers, reviewedHierarchyTrail } from "./reviewed-hierarchy-navigation.js";
 import "./IntelligenceGraphPage.css";
 
 const LinkedIntelligenceGraph = lazy(() => import("./LinkedIntelligenceGraph.jsx"));
@@ -43,8 +44,19 @@ function defaultRoot(index) {
     || null;
 }
 
-function graphRoute(root, target = null) {
-  return intelligenceGraphRoute({
+function writeStructureView(params, view) {
+  const write = (name, value, fallback) => { if (value === fallback) params.delete(name); else params.set(name, value); };
+  write("orgDepth", view.depth, "2");
+  write("orgGroup", view.group, "services");
+  write("orgStatus", view.status, "current");
+  write("orgOverlay", view.workOverlay, "opportunities");
+  write("orgWorkScope", view.workScope, "subtree");
+  if (view.workOnly) params.set("orgWorkOnly", "1"); else params.delete("orgWorkOnly");
+  return params;
+}
+
+function graphRoute(root, target = null, view = null) {
+  const route = intelligenceGraphRoute({
     entityType: root.type,
     entityId: root.id,
     entityLabel: root.label,
@@ -52,6 +64,45 @@ function graphRoute(root, target = null) {
     targetId: target?.id,
     targetLabel: target?.label,
   });
+  if (!view || root.type !== "organization") return route;
+  const [path, query = ""] = route.split("?");
+  const params = writeStructureView(new URLSearchParams(query), view);
+  return `${path}${params.size ? `?${params}` : ""}`;
+}
+
+function hierarchyWorkDescription(index, entityId) {
+  const summary = index?.indices?.byEntity?.[entityId]?.workSummary;
+  if (!summary) return "Reviewed sibling organization";
+  return `${Number(summary.opportunities || 0).toLocaleString()} opportunities · ${Number(summary.awards || 0).toLocaleString()} awards`;
+}
+
+function OrganizationHierarchyNavigator({ index, selected, view }) {
+  const trail = useMemo(() => reviewedHierarchyTrail(index, selected.id), [index, selected.id]);
+  const peers = useMemo(() => reviewedHierarchyPeers(index, selected.id), [index, selected.id]);
+  const parent = trail.at(-2);
+  if (!parent) return null;
+  return <section className="if-panel if-cluster if-cluster--between if-p-3" aria-label="Reviewed organization navigation" data-reviewed-hierarchy-navigation>
+    <nav className="if-breadcrumbs" aria-label="Reviewed organization path">
+      {trail.map((entity, indexValue) => <Fragment key={entity.id}>
+        {indexValue ? <span className="if-breadcrumbs__separator" aria-hidden="true">/</span> : null}
+        {indexValue === trail.length - 1
+          ? <span className="if-breadcrumbs__current" aria-current="page">{entity.label}</span>
+          : <a href={graphRoute(entity, null, view)}>{entity.label}</a>}
+      </Fragment>)}
+    </nav>
+    <div className="if-cluster if-cluster--nowrap">
+      <a className="if-btn if-btn--secondary if-btn--sm" href={graphRoute(parent, null, view)} data-reviewed-hierarchy-parent><ArrowLeft size={14} />Up to {parent.label}</a>
+      {peers.length ? <ControlMenu
+        label={`Peers (${peers.length})`}
+        ariaLabel={`Peer organizations of ${selected.label}`}
+        icon={<Network size={14} aria-hidden="true" />}
+        align="end"
+        triggerClassName="if-btn if-btn--secondary if-btn--sm"
+        items={peers.map((entity) => ({ id: entity.id, label: entity.label, description: hierarchyWorkDescription(index, entity.id), href: graphRoute(entity, null, view) }))}
+        data-reviewed-hierarchy-peers
+      /> : null}
+    </div>
+  </section>;
 }
 
 function EntitySearch({ selected, suggestions, onSelect }) {
@@ -88,6 +139,12 @@ function TraceControl({ root, selected, suggestions, onSelect, onClear }) {
 export default function IntelligenceGraphPage({ routeHash = "" }) {
   const routed = routedEntity(routeHash);
   const [state, setState] = useState({ status: "loading", index: null, search: null, error: null });
+  const [navigationView, setNavigationView] = useState(routed.view);
+  useEffect(() => {
+    const syncNavigationView = () => setNavigationView(routedEntity(window.location.hash).view);
+    window.addEventListener("hashchange", syncNavigationView);
+    return () => window.removeEventListener("hashchange", syncNavigationView);
+  }, []);
   useEffect(() => {
     let active = true;
     Promise.all([loadLinkedIntelligence(), loadIntelligenceSearchIndex()])
@@ -129,19 +186,13 @@ export default function IntelligenceGraphPage({ routeHash = "" }) {
     });
   }, [state.index, state.search]);
   const timelineCount = selected ? state.index?.indices?.byEntity?.[selected.id]?.timelineActivityIds?.length || 0 : 0;
-  const updateRoot = (entity) => { window.location.hash = graphRoute(entity); };
-  const updateTarget = (entity) => { window.location.hash = graphRoute(selected, entity); };
-  const clearTarget = () => { window.location.hash = graphRoute(selected); };
+  const updateRoot = (entity) => { window.location.hash = graphRoute(entity, null, navigationView); };
+  const updateTarget = (entity) => { window.location.hash = graphRoute(selected, entity, navigationView); };
+  const clearTarget = () => { window.location.hash = graphRoute(selected, null, navigationView); };
   const updateStructureView = (view) => {
+    setNavigationView(view);
     const [path, query = ""] = String(routeHash || "#/budget-spend/intelligence-graph").split("?");
-    const params = new URLSearchParams(query);
-    const write = (name, value, fallback) => { if (value === fallback) params.delete(name); else params.set(name, value); };
-    write("orgDepth", view.depth, "2");
-    write("orgGroup", view.group, "services");
-    write("orgStatus", view.status, "current");
-    write("orgOverlay", view.workOverlay, "opportunities");
-    write("orgWorkScope", view.workScope, "subtree");
-    if (view.workOnly) params.set("orgWorkOnly", "1"); else params.delete("orgWorkOnly");
+    const params = writeStructureView(new URLSearchParams(query), view);
     window.history.replaceState(window.history.state, "", `${path}${params.size ? `?${params}` : ""}`);
   };
 
@@ -157,6 +208,7 @@ export default function IntelligenceGraphPage({ routeHash = "" }) {
           {timelineCount ? <a className="if-btn if-btn--secondary" href={timelineRoute("", { scope: "entity", entityType: selected.type, entityId: selected.id, entityLabel: selected.label })}><CalendarClock size={15} />Timeline <small className="if-text-xs">{timelineCount.toLocaleString()}</small></a> : null}
         </div>
       </section>
+      {target ? null : <OrganizationHierarchyNavigator index={state.index} selected={selected} view={navigationView} />}
       <section className="if-panel intelligence-graph-page__canvas" aria-label="Traversable linked intelligence graph"><Suspense fallback={<ControlAsyncState state="loading" title="Opening linked graph" message="Preparing the bounded relationship canvas." />}><LinkedIntelligenceGraph key={`${selected.id}:${target?.id || "neighborhood"}:${routed.view.depth}:${routed.view.group}:${routed.view.status}:${routed.view.workOnly}:${routed.view.workOverlay}:${routed.view.workScope}`} index={state.index} rootId={selected.id} targetId={target?.id || ""} initialStructure={routed.view} onStructureChange={updateStructureView} onRootChange={updateRoot} /></Suspense></section>
     </> : <ControlAsyncState state="empty" title="No linked entity available" message="Return to Organizations or Opportunities and choose a retained entity." action={<a className="if-btn if-btn--secondary" href="#/budget-spend/library"><Network size={15} />Open organizations</a>} />}
   </div>;

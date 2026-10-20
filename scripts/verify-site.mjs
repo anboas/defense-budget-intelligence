@@ -2570,6 +2570,11 @@ try {
   assert.match(await page.locator('[data-if-control-tab="hierarchy"]').innerText(), /Hierarchy\s+3/i, "Relationship lenses should disclose NAVAIR's complete retained hierarchy count");
   assert.match(await page.locator('[data-if-control-tab="work"]').innerText(), /Work\s+41/i, "Relationship lenses should disclose NAVAIR's complete retained work count");
   assert.equal(await page.locator('[data-if-control-tab="work"] .if-badge').innerText(), "41", "Relationship counts must use the framework badge slot instead of being concatenated into labels");
+  const navairHierarchyNavigation = page.locator("[data-reviewed-hierarchy-navigation]");
+  assert.match(await navairHierarchyNavigation.innerText(), /Department of War[\s\S]*Department of the Navy[\s\S]*Naval Air Systems Command/i, "Reviewed organization roots must retain a visible canonical path to the department root");
+  assert.match(await navairHierarchyNavigation.locator("[data-reviewed-hierarchy-parent]").innerText(), /Up to Department of the Navy/i, "Reviewed hierarchy navigation must expose one-click parent traversal");
+  await chooseControlSelect(page, "Work overlay", "Awards");
+  assert.match(decodeURIComponent(new URL(page.url()).hash), /orgOverlay=awards/i, "Hierarchy navigation should inherit the current graph view model");
   assert.equal(await page.locator("[data-intelligence-graph-trace-control]").count(), 0, "Trace target search should remain collapsed until requested");
   await page.getByRole("button", { name: /Trace a connection from Naval Air Systems Command/i }).click();
   const traceSearch = page.locator("[data-intelligence-graph-trace-control] input[role=combobox]");
@@ -2577,6 +2582,7 @@ try {
   await page.getByRole("option", { name: /^Operation and Maintenance, Navy\b/i }).first().click();
   await page.waitForSelector('[data-linked-intelligence-graph][data-graph-mode="connection"][data-connection-hops="3"]');
   assert.equal(await page.locator("[data-organization-structure-controls]").count(), 0, "Connection traces must not retain irrelevant organization-structure controls");
+  assert.equal(await page.locator("[data-reviewed-hierarchy-navigation]").count(), 0, "Connection traces must not retain hierarchy navigation that cannot change the active path");
   assert.match(decodeURIComponent(new URL(page.url()).hash).replaceAll("+", " "), /graphTarget=account:017-1804[\s\S]*graphTargetLabel=Operation and Maintenance, Navy/i, "Connection traces should remain shareable with an exact target identity");
   assert.equal(await page.locator("[data-connection-path] [data-connection-step]").count(), 3, "NAVAIR's account trace should expose three evidence-backed steps");
   assert.equal(await page.locator("[data-linked-graph-canvas] .if-graph-node").count(), 4, "The connection canvas should show only the start, two retained intermediates, and target");
@@ -2613,6 +2619,7 @@ try {
   await page.getByRole("button", { name: /Change connection target from Naval Air Systems Command/i }).click();
   await page.getByRole("button", { name: "Clear connection trace" }).click();
   await page.waitForSelector('[data-linked-intelligence-graph][data-graph-mode="neighborhood"]');
+  await page.waitForSelector("[data-reviewed-hierarchy-navigation]");
   await page.locator('[data-if-control-tab="hierarchy"]').click();
   await page.waitForFunction(() => {
     const graph = document.querySelector("[data-linked-graph-canvas]");
@@ -2664,6 +2671,14 @@ try {
   const niwcOption = page.getByRole("option", { name: /Naval Information Warfare Center Pacific/i }).first();
   await niwcOption.click();
   await page.waitForSelector('[data-linked-intelligence-graph][data-root-id="org:754405b63603f670ceb8"]');
+  const niwcHierarchyNavigation = page.locator("[data-reviewed-hierarchy-navigation]");
+  assert.match(await niwcHierarchyNavigation.innerText(), /Department of War[\s\S]*Department of the Navy[\s\S]*Naval Information Warfare Systems Command[\s\S]*Naval Information Warfare Center Pacific/i, "Deep organization roots must expose their complete reviewed hierarchy path");
+  const niwcParentHref = await niwcHierarchyNavigation.locator("[data-reviewed-hierarchy-parent]").getAttribute("href");
+  assert.match(decodeURIComponent(niwcParentHref || ""), /graphEntity=org:e21815d39b4a9363127b[\s\S]*orgOverlay=awards|orgOverlay=awards[\s\S]*graphEntity=org:e21815d39b4a9363127b/i, "Parent traversal must preserve the exact reviewed parent identity and current graph filters");
+  await page.getByRole("button", { name: /Peer organizations of Naval Information Warfare Center Pacific/i }).click();
+  assert.equal(await page.getByRole("menuitem", { name: /Naval Information Warfare Center Atlantic/i }).count(), 1, "Hierarchy navigation must expose reviewed sibling organizations");
+  assert.equal(await page.getByRole("menuitem", { name: /NAVWAR Headquarters/i }).count(), 1, "Hierarchy peer navigation must retain the reviewed command headquarters");
+  await page.keyboard.press("Escape");
   await page.locator('[data-if-control-tab="hierarchy"]').click();
   assert.equal(await page.locator('[data-linked-graph-canvas] .if-graph-node[data-node-id="org:e21815d39b4a9363127b"]').count(), 1, "NIWC Pacific should expose its reviewed NAVWAR parent");
   const navwarNode = page.locator('[data-linked-graph-canvas] .if-graph-node[data-node-id="org:e21815d39b4a9363127b"]');
