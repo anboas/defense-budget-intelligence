@@ -1,5 +1,5 @@
 import { Fragment, lazy, Suspense, useEffect, useMemo, useState } from "react";
-import { ArrowLeft, CalendarClock, Network, Waypoints, X } from "lucide-react";
+import { ArrowLeft, CalendarClock, GitCompareArrows, Network, Waypoints, X } from "lucide-react";
 import { ControlAsyncState, ControlAutocomplete, ControlMenu, ControlPopover, ControlStatusBadge } from "control-surface-ui/react";
 import ControlWorkbenchHeader from "./WorkbenchHeader.jsx";
 import { intelligenceGraphRoute, timelineRoute } from "./cross-surface-routes.js";
@@ -9,6 +9,7 @@ import { reviewedHierarchyPeers, reviewedHierarchyTrail } from "./reviewed-hiera
 import "./IntelligenceGraphPage.css";
 
 const LinkedIntelligenceGraph = lazy(() => import("./LinkedIntelligenceGraph.jsx"));
+const LinkedEntityComparison = lazy(() => import("./LinkedEntityComparison.jsx"));
 
 const ROOTABLE_TYPES = new Set(["activity", "award", "organization", "federal-account", "defense-program", "program-office"]);
 
@@ -25,6 +26,11 @@ function routedEntity(routeHash) {
       id: params.get("graphTarget") || "",
       type: params.get("graphTargetType") || "",
       label: params.get("graphTargetLabel") || "",
+    },
+    comparison: {
+      id: params.get("graphCompare") || "",
+      type: params.get("graphCompareType") || "",
+      label: params.get("graphCompareLabel") || "",
     },
     view: {
       depth: params.get("orgDepth") || "2",
@@ -55,7 +61,7 @@ function writeStructureView(params, view) {
   return params;
 }
 
-function graphRoute(root, target = null, view = null) {
+function graphRoute(root, target = null, view = null, comparison = null) {
   const route = intelligenceGraphRoute({
     entityType: root.type,
     entityId: root.id,
@@ -63,6 +69,9 @@ function graphRoute(root, target = null, view = null) {
     targetType: target?.type,
     targetId: target?.id,
     targetLabel: target?.label,
+    compareType: comparison?.type,
+    compareId: comparison?.id,
+    compareLabel: comparison?.label,
   });
   if (!view || root.type !== "organization") return route;
   const [path, query = ""] = route.split("?");
@@ -136,6 +145,24 @@ function TraceControl({ root, selected, suggestions, onSelect, onClear }) {
   </ControlPopover>;
 }
 
+function CompareControl({ root, suggestions, onSelect }) {
+  const [query, setQuery] = useState("");
+  const items = useMemo(() => suggestions.filter((item) => item.entity.id !== root.id), [root.id, suggestions]);
+  return <ControlPopover
+    label="Compare"
+    ariaLabel={`Compare ${root.label} with another linked entity`}
+    icon={<GitCompareArrows size={15} aria-hidden="true" />}
+    triggerClassName="if-btn if-btn--secondary"
+    align="start"
+    width={430}
+    popoverProps={{ className: "intelligence-graph-page__trace-popover" }}
+    data-intelligence-graph-compare-popover
+  >
+    <header className="if-stack if-stack--xs"><span className="if-field__label">Side-by-side retained evidence</span><strong>{root.label}</strong><span className="if-text-muted if-text-xs">Choose another organization, account, program, award, or opportunity. Comparison does not infer missing relationships.</span></header>
+    <ControlAutocomplete label="Compare with" value={query} items={items} minLength={1} limit={12} onChange={setQuery} onSelect={(item) => onSelect(item.entity)} placeholder="Navy, NAVAIR, federal account, program, award" emptyText="No retained linked entity matches" data-intelligence-graph-compare-control />
+  </ControlPopover>;
+}
+
 export default function IntelligenceGraphPage({ routeHash = "" }) {
   const routed = routedEntity(routeHash);
   const [state, setState] = useState({ status: "loading", index: null, search: null, error: null });
@@ -166,6 +193,14 @@ export default function IntelligenceGraphPage({ routeHash = "" }) {
       || Object.values(state.index.nodes || {}).find((item) => item.type === routed.target.type && [item.label, ...(item.aliases || [])].some((name) => String(name).toLowerCase() === String(routed.target.label).toLowerCase()))
       || null;
   }, [routed.target.id, routed.target.label, routed.target.type, state.index]);
+  const comparison = useMemo(() => {
+    if (!state.index || !routed.comparison.id) return null;
+    const canonicalId = state.index.indices?.byEntity?.[routed.comparison.id]?.canonicalId || routed.comparison.id;
+    const entity = state.index.nodes?.[canonicalId]
+      || Object.values(state.index.nodes || {}).find((item) => item.type === routed.comparison.type && [item.label, ...(item.aliases || [])].some((name) => String(name).toLowerCase() === String(routed.comparison.label).toLowerCase()))
+      || null;
+    return entity?.id === selected?.id ? null : entity;
+  }, [routed.comparison.id, routed.comparison.label, routed.comparison.type, selected?.id, state.index]);
   const suggestions = useMemo(() => {
     if (!state.search || !state.index) return [];
     const seen = new Set();
@@ -189,6 +224,8 @@ export default function IntelligenceGraphPage({ routeHash = "" }) {
   const updateRoot = (entity) => { window.location.hash = graphRoute(entity, null, navigationView); };
   const updateTarget = (entity) => { window.location.hash = graphRoute(selected, entity, navigationView); };
   const clearTarget = () => { window.location.hash = graphRoute(selected, null, navigationView); };
+  const updateComparison = (entity) => { window.location.hash = graphRoute(selected, null, navigationView, entity); };
+  const clearComparison = () => { window.location.hash = graphRoute(selected, null, navigationView); };
   const updateStructureView = (view) => {
     setNavigationView(view);
     const [path, query = ""] = String(routeHash || "#/budget-spend/intelligence-graph").split("?");
@@ -202,12 +239,23 @@ export default function IntelligenceGraphPage({ routeHash = "" }) {
       <section className="if-panel intelligence-graph-page__rail" aria-label="Graph Explorer controls">
         <EntitySearch key={`root:${selected.id}`} selected={selected} suggestions={suggestions} onSelect={updateRoot} />
         <TraceControl key={`target:${selected.id}:${target?.id || "none"}`} root={selected} selected={target} suggestions={suggestions} onSelect={updateTarget} onClear={clearTarget} />
+        {!target ? <CompareControl key={`compare:${selected.id}:${comparison?.id || "none"}`} root={selected} suggestions={suggestions} onSelect={updateComparison} /> : null}
         <span className="if-field intelligence-graph-page__root"><small className="if-field__label">Graph root</small><strong className="if-truncate">{selected.label}</strong><span className="if-cluster"><ControlStatusBadge category="evidence" status={selected.reviewState || "source_declared"}>{selected.reviewState === "reviewed" ? "Reviewed identity" : "Retained identity"}</ControlStatusBadge><small className="if-text-muted if-text-xs">{intelligenceTypeLabel(selected.type)}</small></span></span>
         <div className="if-button-group intelligence-graph-page__actions">
           <a className="if-btn if-btn--secondary" href="#/budget-spend/library"><ArrowLeft size={15} />Organizations</a>
           {timelineCount ? <a className="if-btn if-btn--secondary" href={timelineRoute("", { scope: "entity", entityType: selected.type, entityId: selected.id, entityLabel: selected.label })}><CalendarClock size={15} />Timeline <small className="if-text-xs">{timelineCount.toLocaleString()}</small></a> : null}
         </div>
       </section>
+      {!target && comparison ? <Suspense fallback={null}><LinkedEntityComparison
+        index={state.index}
+        root={selected}
+        comparison={comparison}
+        scope={navigationView.workScope}
+        onClose={clearComparison}
+        rootHref={(entity) => graphRoute(entity, null, navigationView)}
+        timelineHref={(entity) => timelineRoute("", { scope: "entity", entityType: entity.type, entityId: entity.id, entityLabel: entity.label })}
+        traceHref={graphRoute(selected, comparison, navigationView)}
+      /></Suspense> : null}
       {target ? null : <OrganizationHierarchyNavigator index={state.index} selected={selected} view={navigationView} />}
       <section className="if-panel intelligence-graph-page__canvas" aria-label="Traversable linked intelligence graph"><Suspense fallback={<ControlAsyncState state="loading" title="Opening linked graph" message="Preparing the bounded relationship canvas." />}><LinkedIntelligenceGraph key={`${selected.id}:${target?.id || "neighborhood"}:${routed.view.depth}:${routed.view.group}:${routed.view.status}:${routed.view.workOnly}:${routed.view.workOverlay}:${routed.view.workScope}`} index={state.index} rootId={selected.id} targetId={target?.id || ""} initialStructure={routed.view} onStructureChange={updateStructureView} onRootChange={updateRoot} /></Suspense></section>
     </> : <ControlAsyncState state="empty" title="No linked entity available" message="Return to Organizations or Opportunities and choose a retained entity." action={<a className="if-btn if-btn--secondary" href="#/budget-spend/library"><Network size={15} />Open organizations</a>} />}
