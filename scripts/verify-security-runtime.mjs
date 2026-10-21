@@ -113,6 +113,7 @@ const mapCssBytes = cssAssets.find(({ asset }) => /^OpportunityMap-.*\.css$/.tes
 const connectedEvidenceCssBytes = cssAssets.find(({ asset }) => /^ConnectedEvidence-.*\.css$/.test(asset))?.bytes || 0;
 const domainModelCssBytes = cssAssets.find(({ asset }) => /^DomainModelPage-.*\.css$/.test(asset))?.bytes || 0;
 const intelligenceProductsCssBytes = cssAssets.find(({ asset }) => /^IntelligenceProductsPage-.*\.css$/.test(asset))?.bytes || 0;
+const accountabilityFindingsCssBytes = cssAssets.find(({ asset }) => /^AccountabilityFindings-.*\.css$/.test(asset))?.bytes || 0;
 const researchDiscoveryCssBytes = cssAssets.find(({ asset }) => /^ResearchDiscoveryDashboard-.*\.css$/.test(asset))?.bytes || 0;
 const opportunityPortfolioCssBytes = cssAssets.find(({ asset }) => /^OpportunityPortfolioVisuals-.*\.css$/.test(asset))?.bytes || 0;
 const routeControlConsistencyCssBytes = cssAssets.find(({ asset }) => /^RouteControlConsistency-.*\.css$/.test(asset))?.bytes || 0;
@@ -121,6 +122,7 @@ assert.ok(mapCssBytes > 0 && mapCssBytes <= 19_000, `Lazy Opportunity Map CSS ex
 assert.ok(connectedEvidenceCssBytes > 0 && connectedEvidenceCssBytes <= 4_000, `Deferred connected-evidence CSS exceeds its 4KB component ceiling (${connectedEvidenceCssBytes} bytes)`);
 assert.ok(domainModelCssBytes > 0 && domainModelCssBytes <= 8_000, `Lazy domain-model CSS exceeds its 8KB route ceiling (${domainModelCssBytes} bytes)`);
 assert.ok(intelligenceProductsCssBytes > 0 && intelligenceProductsCssBytes <= 13_000, `Lazy organization-intelligence CSS exceeds its 13KB route ceiling (${intelligenceProductsCssBytes} bytes)`);
+assert.ok(accountabilityFindingsCssBytes > 0 && accountabilityFindingsCssBytes <= 3_600, `Deferred accountability-findings CSS exceeds its 3.6KB component ceiling (${accountabilityFindingsCssBytes} bytes)`);
 assert.ok(researchDiscoveryCssBytes > 0 && researchDiscoveryCssBytes <= 10_000, `Deferred discovery-operations CSS exceeds its 10KB component ceiling (${researchDiscoveryCssBytes} bytes)`);
 assert.ok(opportunityPortfolioCssBytes > 0 && opportunityPortfolioCssBytes <= 13_200, `Deferred Strategic Analysis Studio CSS exceeds its 13.2KB route ceiling (${opportunityPortfolioCssBytes} bytes)`);
 assert.ok(routeControlConsistencyCssBytes > 0 && routeControlConsistencyCssBytes <= 4_200, `Deferred route-control consistency CSS exceeds its 4.2KB shared ceiling (${routeControlConsistencyCssBytes} bytes)`);
