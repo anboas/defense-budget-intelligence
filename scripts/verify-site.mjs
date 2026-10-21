@@ -2583,8 +2583,18 @@ try {
   assert.match(decodeURIComponent(new URL(page.url()).hash).replaceAll("+", " "), /graphCompare=org:e21815d39b4a9363127b[\s\S]*graphCompareLabel=Naval Information Warfare Systems Command/i, "Entity comparison should preserve the exact comparison identity in the shareable route");
   assert.match(await comparisonDrawer.innerText(), /Naval Air Systems Command vs Naval Information Warfare Systems Command[\s\S]*Reviewed peers under Department of the Navy/i, "Organization comparison must explain reviewed hierarchy context");
   assert.equal(await comparisonDrawer.locator("[data-comparison-entity]").count(), 2, "Entity comparison should retain one owned profile for each exact entity");
-  assert.match(await comparisonDrawer.innerText(), /Opportunities\s+41[\s\S]*Opportunities\s+10/i, "Entity comparison should show each command's descendant-aware opportunity coverage");
-  assert.equal(await comparisonDrawer.locator("[data-linked-comparison-metrics] .if-management-card").count(), 4, "Entity comparison should use the framework metric strip for overlap and unique-link context");
+  assert.match(await comparisonDrawer.locator('[data-comparison-measure="opportunities"]').innerText(), /Opportunities[\s\S]*Reviewed subtree[\s\S]*41[\s\S]*10/i, "Entity comparison should align each command's descendant-aware opportunity coverage in one semantic row");
+  assert.equal(await comparisonDrawer.locator("[data-linked-comparison-metrics] .if-management-card").count(), 2, "Entity comparison should reserve the framework metric strip for exact shared context");
+  assert.match(await comparisonDrawer.locator("[data-linked-comparison-table]").innerText(), /Exclusive linked entities[\s\S]*44[\s\S]*3[\s\S]*Retained obligations[\s\S]*\$237\.6B[\s\S]*\$335\.8M/i, "Entity comparison should align each side's distinguishing evidence in one compact matrix");
+  const comparisonFoldGeometry = await comparisonDrawer.evaluate((drawer) => {
+    const matrix = drawer.querySelector("[data-linked-comparison-table]")?.getBoundingClientRect();
+    const shared = drawer.querySelector("[data-linked-comparison-shared]")?.getBoundingClientRect();
+    const sharedEvidence = drawer.querySelector("[data-linked-comparison-shared] .if-list-item")?.getBoundingClientRect();
+    const bounds = drawer.getBoundingClientRect();
+    return { matrixHeight: matrix?.height || 0, sharedTop: shared?.top || 0, sharedEvidenceTop: sharedEvidence?.top || 0, drawerBottom: bounds.bottom };
+  });
+  assert.ok(comparisonFoldGeometry.matrixHeight > 0 && comparisonFoldGeometry.matrixHeight <= 540, `Entity comparison matrix should stay scan-dense: ${JSON.stringify(comparisonFoldGeometry)}`);
+  assert.ok(comparisonFoldGeometry.sharedTop > 0 && comparisonFoldGeometry.sharedEvidenceTop > 0 && comparisonFoldGeometry.sharedEvidenceTop < comparisonFoldGeometry.drawerBottom, `Exact shared comparison evidence should begin inside the first desktop drawer viewport: ${JSON.stringify(comparisonFoldGeometry)}`);
   const compareTraceHref = await comparisonDrawer.getByRole("link", { name: /Trace connection/i }).getAttribute("href");
   assert.match(decodeURIComponent(compareTraceHref || ""), /graphTarget=org:e21815d39b4a9363127b/i, "Entity comparison should hand off to the exact evidence-trace target");
   await page.screenshot({ path: `${OUT_DIR}/linked-entity-comparison-desktop.png`, fullPage: true });
@@ -3068,7 +3078,8 @@ try {
   const mobileComparisonBounds = await mobileComparison.boundingBox();
   assert.ok(mobileComparisonBounds && mobileComparisonBounds.x >= 0 && mobileComparisonBounds.x + mobileComparisonBounds.width <= 390, `Mobile entity comparison drawer must stay inside the viewport: ${JSON.stringify(mobileComparisonBounds)}`);
   assert.equal(await mobileComparison.locator("[data-comparison-entity]").count(), 2, "Mobile entity comparison should retain both exact entity profiles");
-  assert.equal(await mobileComparison.locator("[data-linked-comparison-metrics] .if-management-card").count(), 4, "Mobile entity comparison should retain every overlap metric in the framework strip");
+  assert.equal(await mobileComparison.locator("[data-linked-comparison-metrics] .if-management-card").count(), 2, "Mobile entity comparison should retain both exact shared-context metrics");
+  assert.equal(await mobileComparison.locator("[data-linked-comparison-table] [data-comparison-entity]").count(), 2, "Mobile comparison matrix should retain both exact entity columns");
   await assertButtonIntegrity(mobile, "Mobile linked entity comparison", "[data-linked-entity-comparison]");
   await assertNoPageOverflow(mobile, "Mobile linked entity comparison");
   await mobile.keyboard.press("Escape");
