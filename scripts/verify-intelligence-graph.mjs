@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 import { gunzipSync } from "node:zlib";
 import { CONTRACT_LINEAGE_SCHEMA_VERSION, INTELLIGENCE_ENTITY_TYPES, INTELLIGENCE_GRAPH_SCHEMA_VERSION, INTELLIGENCE_RELATION_TYPES, LINKED_INTELLIGENCE_SCHEMA_VERSION } from "../src/intelligence-graph.js";
 import { findEvidencePath, relationLabel, summarizeRelationshipCoverage } from "../src/linked-intelligence-path.js";
+import { compareLinkedEntities } from "../src/linked-intelligence-comparison.js";
 import { reviewedHierarchyPeers, reviewedHierarchyTrail } from "../src/reviewed-hierarchy-navigation.js";
 import { CONFLICT_STATUS_VALUES, TEMPORAL_EVIDENCE_SCHEMA_VERSION, TEMPORAL_STATUS_VALUES } from "./temporal-evidence-resolver.mjs";
 
@@ -332,6 +333,13 @@ const operationsNavy = linkedNodes.find((node) => node.type === "federal-account
 assert.ok(operationsNavy, "Operation and Maintenance, Navy must remain a rootable linked account");
 const navairCoverage = summarizeRelationshipCoverage(linkedIntelligence, navair.id);
 assert.ok(navairCoverage.relationships >= 70 && navairCoverage.neighborCounts.hierarchy >= 3 && navairCoverage.neighborCounts.work >= 40, "Graph lens counts must describe NAVAIR's complete retained neighborhood rather than only visible slices");
+const navyNavairComparison = compareLinkedEntities(linkedIntelligence, navy.id, navair.id);
+assert.match(navyNavairComparison?.reviewedRelationship || "", /Naval Air Systems Command sits inside Department of the Navy/i, "Entity comparison must explain reviewed ancestor/descendant context");
+assert.equal(navyNavairComparison?.right.work.opportunities, navairWorkIndex.workSummary.opportunities, "Entity comparison must use the same descendant-aware work total as the graph inspector");
+assert.equal(navyNavairComparison?.sharedTimelineIds.length, navairWorkIndex.timelineActivityIds.length, "Navy and NAVAIR comparison must identify the exact NAVAIR Timeline subset shared with its reviewed department");
+assert.ok(navyNavairComparison?.directRelations.some(({ relation }) => relation.type === "organization-part-of"), "Entity comparison must retain the exact reviewed relationship between Navy and NAVAIR");
+const directNavairComparison = compareLinkedEntities(linkedIntelligence, navy.id, navair.id, { scope: "direct" });
+assert.equal(directNavairComparison?.right.work.opportunities, navairWorkIndex.workSummary.directOpportunities, "Direct comparison scope must not leak descendant work into NAVAIR");
 const navairMoneyPath = findEvidencePath(linkedIntelligence, navair.id, operationsNavy.id);
 assert.equal(navairMoneyPath?.hops, 3, "NAVAIR should trace to Operation and Maintenance, Navy through one activity and its exact award");
 assert.deepEqual(navairMoneyPath?.relations.map((relation) => relation.type), ["activity-funding-organization", "activity-awarded-as", "award-funded-by-account"], "NAVAIR's account trace must preserve the retained work-to-award-to-account chain");
