@@ -9,6 +9,7 @@ import SurfaceState from "./SurfaceState.jsx";
 import "./IntelligenceProductsPage.css";
 
 const ResearchDiscoveryDashboard = lazy(() => import("./ResearchDiscoveryDashboard.jsx"));
+const AccountabilityFindings = lazy(() => import("./AccountabilityFindings.jsx"));
 
 const SECTIONS = [
   ["organizations", "Organizations"],
@@ -49,7 +50,16 @@ function setSectionRoute(section) {
   const [path, search = ""] = String(window.location.hash || "#/budget-spend/intelligence").split("?");
   const params = new URLSearchParams(search);
   if (section === "organizations") params.delete("view"); else params.set("view", section);
+  if (section !== "accountability") params.delete("finding");
   window.location.hash = `${path}${params.size ? `?${params}` : ""}`;
+}
+
+function setFindingRoute(id = "") {
+  const [path, search = ""] = String(window.location.hash || "#/budget-spend/intelligence").split("?");
+  const params = new URLSearchParams(search);
+  params.set("view", "accountability");
+  if (id) params.set("finding", id); else params.delete("finding");
+  window.location.hash = `${path}?${params}`;
 }
 
 function SourceState({ row }) {
@@ -113,6 +123,7 @@ export default function IntelligenceProductsPage({ routeHash = "" }) {
   const people = useMemo(() => new Map((state.roadmap?.people || []).map((row) => [row.id, row])), [state.roadmap]);
   const rolesById = useMemo(() => new Map(roles.map((row) => [row.id, row])), [roles]);
   const organizationId = new URLSearchParams(String(routeHash).split("?")[1] || "").get("organization") || "";
+  const findingId = new URLSearchParams(String(routeHash).split("?")[1] || "").get("finding") || "";
   const filteredDossiers = useMemo(() => {
     const query = organizationQuery.trim().toLowerCase();
     const rows = state.organizations?.dossiers || [];
@@ -170,8 +181,8 @@ export default function IntelligenceProductsPage({ routeHash = "" }) {
     </section> : null}
 
     {section === "accountability" ? <section className="intelligence-products__split" data-accountability-panel>
-      <article className="intelligence-products__panel"><header><div><span>Program evidence</span><h3>Health summaries</h3><p>Deterministic summaries of retained baselines, marks, and findings. These are not predictive ratings.</p></div><b>{number(coverage.programHealthProfiles)} programs</b></header><div className="intelligence-products__table">{data.programHealthProfiles.filter((row) => row.healthState !== "baseline-only").slice(0, 30).map((row) => <div key={row.id}><span><strong>{row.label}</strong><small>{row.healthState.replaceAll("-", " ")}</small></span><b>{Math.round(row.evidenceCompleteness * 100)}%</b><small>{number(row.findingCount)} findings · {number(row.changedMarkCount)} changed marks</small></div>)}</div></article>
-      <article className="intelligence-products__panel"><header><div><span>Official findings</span><h3>Accountability evidence</h3><p>The public corpus is bounded. Zero protest, audit, or corrective-action records is a source limitation, not a clean-record assertion.</p></div><b>{number(coverage.accountabilityFindings)} findings</b></header><div className="intelligence-products__findings">{data.accountabilityFindings.map((row) => <article key={row.id}><strong>{row.label}</strong><p>{row.finding}</p><a href={row.sourceUrl} target="_blank" rel="noreferrer">Official source</a></article>)}</div></article>
+      <article className="intelligence-products__panel" data-program-health-summaries><header><div><span>Program evidence</span><h3>Health summaries</h3><p>Deterministic summaries of retained baselines, marks, and findings. These are not predictive ratings.</p></div><b>{number(coverage.programHealthProfiles)} programs</b></header><div className="intelligence-products__table">{data.programHealthProfiles.filter((row) => row.healthState !== "baseline-only").slice(0, 30).map((row) => <div key={row.id}><span><strong>{row.label}</strong><small>{row.healthState.replaceAll("-", " ")}</small></span><b>{Math.round(row.evidenceCompleteness * 100)}%</b><small>{number(row.findingCount)} findings · {number(row.changedMarkCount)} changed marks</small></div>)}</div></article>
+      <Suspense fallback={<SurfaceState compact owner="accountability-findings" state="loading" icon={<FileSearch size={22} />} title="Loading accountability evidence" message="Preparing the retained finding matrix." />}><AccountabilityFindings findings={data.accountabilityFindings} programHealthProfiles={data.programHealthProfiles} selectedId={findingId} onSelect={setFindingRoute} /></Suspense>
     </section> : null}
 
     {section === "documents" ? <section className="intelligence-products__split" data-document-intelligence-panel>
