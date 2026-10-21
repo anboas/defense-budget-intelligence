@@ -1,5 +1,5 @@
 import { CalendarClock, Network, Waypoints } from "lucide-react";
-import { ControlDrawer, ControlFactGrid, ControlMetricStrip, ControlStatusBadge } from "control-surface-ui/react";
+import { ControlDrawer, ControlMetricStrip, ControlStatusBadge } from "control-surface-ui/react";
 import { intelligenceTypeLabel } from "./intelligence-search.js";
 import { compareLinkedEntities } from "./linked-intelligence-comparison.js";
 
@@ -11,34 +11,33 @@ function money(value) {
   return `$${Math.round(amount).toLocaleString()}`;
 }
 
-function profileFacts(profile, scope) {
-  const facts = [
-    { label: "Timeline records", value: profile.timelineIds.length.toLocaleString() },
-    { label: "Retained relationships", value: profile.coverage.relationships.toLocaleString() },
-    { label: "Linked entities", value: profile.coverage.neighbors.toLocaleString() },
-  ];
-  if (!profile.work) return facts;
+function comparisonRows(result, scope) {
+  const value = (profile, field, format = (item) => item.toLocaleString()) => profile.work ? format(profile.work[field]) : "Not retained";
   return [
-    ...facts,
-    { label: "Opportunities", value: profile.work.opportunities.toLocaleString(), meta: scope === "direct" ? "Direct ownership" : "Reviewed subtree" },
-    { label: "Awards", value: profile.work.awards.toLocaleString() },
-    { label: "Federal accounts", value: profile.work.accounts.toLocaleString() },
-    { label: "Retained obligations", value: money(profile.work.obligatedAmount), wide: true },
+    { id: "exclusive-links", label: "Exclusive linked entities", meta: "Directly linked to only this side", left: result.leftUniqueNeighborCount.toLocaleString(), right: result.rightUniqueNeighborCount.toLocaleString() },
+    { id: "timeline", label: "Timeline records", left: result.left.timelineIds.length.toLocaleString(), right: result.right.timelineIds.length.toLocaleString() },
+    { id: "relationships", label: "Retained relationships", left: result.left.coverage.relationships.toLocaleString(), right: result.right.coverage.relationships.toLocaleString() },
+    { id: "linked-entities", label: "Linked entities", left: result.left.coverage.neighbors.toLocaleString(), right: result.right.coverage.neighbors.toLocaleString() },
+    { id: "opportunities", label: "Opportunities", meta: scope === "direct" ? "Direct ownership" : "Reviewed subtree", left: value(result.left, "opportunities"), right: value(result.right, "opportunities") },
+    { id: "awards", label: "Awards", left: value(result.left, "awards"), right: value(result.right, "awards") },
+    { id: "accounts", label: "Federal accounts", left: value(result.left, "accounts"), right: value(result.right, "accounts") },
+    { id: "obligations", label: "Retained obligations", left: value(result.left, "obligatedAmount", money), right: value(result.right, "obligatedAmount", money) },
   ];
 }
 
-function EntityProfile({ profile, scope, rootHref, timelineHref, current = false }) {
-  return <article className="if-panel" data-comparison-entity={profile.id}>
-    <header className="if-panel__header">
-      <div><small className="if-panel__eyebrow">{intelligenceTypeLabel(profile.node.type)}</small><h3 className="if-panel__title">{profile.node.label}</h3></div>
-      <ControlStatusBadge status={current ? "Current root" : profile.node.reviewState || "Retained"} tone={current ? "info" : undefined} />
-    </header>
-    <div className="if-panel__body"><ControlFactGrid mobileTwoColumn label={`${profile.node.label} comparison facts`} items={profileFacts(profile, scope)} /></div>
-    <footer className="if-panel__footer if-button-group">
-      {!current ? <a className="if-btn if-btn--primary" href={rootHref}><Network size={14} aria-hidden="true" />Make graph root</a> : null}
-      {profile.timelineIds.length ? <a className="if-btn if-btn--secondary" href={timelineHref}><CalendarClock size={14} aria-hidden="true" />Timeline {profile.timelineIds.length.toLocaleString()}</a> : null}
-    </footer>
-  </article>;
+function EntityHeading({ profile, current = false }) {
+  return <div className="if-stack if-stack--xs" data-comparison-entity={profile.id}>
+    <small>{intelligenceTypeLabel(profile.node.type)}</small>
+    <span>{profile.node.label}</span>
+    <div><ControlStatusBadge status={current ? "Current root" : profile.node.reviewState || "Retained"} tone={current ? "info" : undefined} /></div>
+  </div>;
+}
+
+function EntityActions({ profile, current = false, rootHref, timelineHref }) {
+  return <div className="if-button-group" aria-label={`${profile.node.label} actions`}>
+    {!current ? <a className="if-btn if-btn--primary" href={rootHref(profile.node)}><Network size={14} aria-hidden="true" />Make graph root</a> : null}
+    {profile.timelineIds.length ? <a className="if-btn if-btn--secondary" href={timelineHref(profile.node)}><CalendarClock size={14} aria-hidden="true" />Timeline {profile.timelineIds.length.toLocaleString()}</a> : null}
+  </div>;
 }
 
 export default function LinkedEntityComparison({ index, root, comparison, scope = "subtree", onClose, rootHref, timelineHref, traceHref }) {
@@ -47,9 +46,8 @@ export default function LinkedEntityComparison({ index, root, comparison, scope 
   const overlapMetrics = [
     { id: "timeline", label: "Shared Timeline records", value: result.sharedTimelineIds.length.toLocaleString(), meta: "Exact retained identities", tone: "purple" },
     { id: "neighbors", label: "Shared linked entities", value: result.sharedNeighborCount.toLocaleString(), meta: "Visible below when retained", tone: "info" },
-    { id: "left-unique", label: "Root-only links", value: result.leftUniqueNeighborCount.toLocaleString(), meta: root.label },
-    { id: "right-unique", label: "Comparison-only links", value: result.rightUniqueNeighborCount.toLocaleString(), meta: comparison.label },
   ];
+  const rows = comparisonRows(result, scope);
   return <ControlDrawer
     open
     onClose={onClose}
@@ -63,6 +61,34 @@ export default function LinkedEntityComparison({ index, root, comparison, scope 
   >
     <div className="if-stack">
       <ControlMetricStrip compactMobile mobileScroll label="Linked entity overlap" items={overlapMetrics} data-linked-comparison-metrics />
+      <section className="if-panel" data-linked-comparison-table>
+        <header className="if-panel__header"><div><h3 className="if-panel__title">Compared evidence</h3><p className="if-panel__subtitle">Aligned retained measures make gaps and differences explicit.</p></div></header>
+        <div className="if-table-wrap">
+          <table className="if-table if-table--dense">
+            <caption className="if-sr-only">Retained evidence comparison for {result.left.node.label} and {result.right.node.label}</caption>
+            <thead><tr><th scope="col">Measure</th><th scope="col"><EntityHeading profile={result.left} current /></th><th scope="col"><EntityHeading profile={result.right} /></th></tr></thead>
+            <tbody>{rows.map((row) => <tr key={row.id} data-comparison-measure={row.id}>
+              <th scope="row"><span>{row.label}{row.meta ? <><span aria-hidden="true"> · </span><small className="if-text-muted">{row.meta}</small></> : null}</span></th>
+              <td>{row.left}</td>
+              <td>{row.right}</td>
+            </tr>)}</tbody>
+          </table>
+        </div>
+        <footer className="if-panel__footer if-grid if-grid--2" aria-label="Compared entity actions">
+          <EntityActions profile={result.left} current rootHref={rootHref} timelineHref={timelineHref} />
+          <EntityActions profile={result.right} rootHref={rootHref} timelineHref={timelineHref} />
+        </footer>
+      </section>
+      <section className="if-panel" data-linked-comparison-shared>
+        <header className="if-panel__header"><div><h3 className="if-panel__title">Shared retained context</h3><p className="if-panel__subtitle">Exact entities directly linked to both sides. Omission does not imply no real-world relationship.</p></div><span className="if-badge">{result.sharedNeighborCount.toLocaleString()}</span></header>
+        <div className="if-panel__body">
+          {result.sharedNeighbors.length ? <div className="if-stack if-stack--xs">{result.sharedNeighbors.map((item) => <a className="if-list-item" key={item.id} href={rootHref(item.node)}>
+            <span className="if-list-item__icon" aria-hidden="true"><Network size={15} /></span>
+            <span className="if-list-item__body"><strong className="if-list-item__title">{item.node.label}</strong><small className="if-list-item__meta">{intelligenceTypeLabel(item.node.type)} · {item.leftCategories.join(" + ")} / {item.rightCategories.join(" + ")}</small></span>
+            <span className="if-badge">Open</span>
+          </a>)}</div> : <p className="if-text-muted">No exact shared one-hop entity is retained. Use Trace connection to inspect a longer evidence-backed path.</p>}
+        </div>
+      </section>
       {result.reviewedRelationship || result.directRelations.length ? <section className="if-panel" data-linked-comparison-context>
         <header className="if-panel__header"><div><h3 className="if-panel__title">Relationship context</h3><p className="if-panel__subtitle">Only retained direct or reviewed hierarchy claims are summarized.</p></div></header>
         <div className="if-panel__body if-stack if-stack--xs">
@@ -70,19 +96,6 @@ export default function LinkedEntityComparison({ index, root, comparison, scope 
           {result.directRelations.map(({ relation, label }) => <p key={relation.id}><strong>{label}</strong> · {relation.evidence?.basis || "Retained relationship"}</p>)}
         </div>
       </section> : null}
-      <section className="if-grid if-grid--2" aria-label="Compared linked entities">
-        <EntityProfile profile={result.left} scope={scope} current rootHref={rootHref(result.left.node)} timelineHref={timelineHref(result.left.node)} />
-        <EntityProfile profile={result.right} scope={scope} rootHref={rootHref(result.right.node)} timelineHref={timelineHref(result.right.node)} />
-      </section>
-      <section className="if-panel" data-linked-comparison-shared>
-        <header className="if-panel__header"><div><h3 className="if-panel__title">Shared retained context</h3><p className="if-panel__subtitle">Exact entities directly linked to both sides. Omission does not imply no real-world relationship.</p></div><span className="if-badge">{result.sharedNeighborCount.toLocaleString()}</span></header>
-        <div className="if-panel__body">
-          {result.sharedNeighbors.length ? <div className="if-stack if-stack--xs">{result.sharedNeighbors.map((item) => <a className="if-list-item" key={item.id} href={rootHref(item.node)}>
-            <span className="if-list-item__body"><strong className="if-list-item__title">{item.node.label}</strong><small className="if-list-item__meta">{intelligenceTypeLabel(item.node.type)} · {item.leftCategories.join(" + ")} / {item.rightCategories.join(" + ")}</small></span>
-            <span className="if-badge">Open</span>
-          </a>)}</div> : <p className="if-text-muted">No exact shared one-hop entity is retained. Use Trace connection to inspect a longer evidence-backed path.</p>}
-        </div>
-      </section>
     </div>
   </ControlDrawer>;
 }
