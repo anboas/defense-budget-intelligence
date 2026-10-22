@@ -1,10 +1,10 @@
 {
   "metadata": {
     "schemaVersion": "1.0.0",
-    "generatedAt": "2026-10-15T19:40:23.325Z",
+    "generatedAt": "2026-10-22T15:33:51.150Z",
     "status": "compared",
     "discoveryCount": 888,
-    "historyDays": 2,
+    "historyDays": 3,
     "coverage": {
       "scope": "Technology-focused acquisition records assembled from disclosed public-source queries; not exhaustive DoW award coverage.",
       "knownRecords": 888,
@@ -28,7 +28,7 @@
         "sam": {
           "status": "unavailable",
           "generatedAt": null,
-          "lastAttemptAt": "2026-10-15T19:40:21.851Z"
+          "lastAttemptAt": "2026-10-22T15:33:49.809Z"
         },
         "usaspending": {
           "status": "current",
@@ -43,6 +43,22 @@
     }
   },
   "history": [
+    {
+      "date": "2026-10-22",
+      "generatedAt": "2026-10-22T15:33:51.150Z",
+      "summary": {
+        "added": 0,
+        "updated": 0,
+        "removed": 0
+      },
+      "sources": {
+        "sam": "unavailable",
+        "usaspending": "current",
+        "contractMonitor": "gaps-disclosed"
+      },
+      "changes": [],
+      "truncated": false
+    },
     {
       "date": "2026-10-15",
       "generatedAt": "2026-10-15T19:40:23.325Z",
@@ -1617,20 +1633,6 @@
   ],
   "closingSoon": [
     {
-      "opportunityId": "auto_usaspending_CONT_AWD_N0002412C2115_9700__NONE___NONE_",
-      "sourceRecordId": "CONT_AWD_N0002412C2115_9700_-NONE-_-NONE-",
-      "sourceSystem": "USAspending",
-      "title": "SSN 792 LONG LEAD TIME MATERIAL",
-      "date": "2026-10-20"
-    },
-    {
-      "opportunityId": "auto_usaspending_CONT_AWD_FA714624C0019_9700__NONE___NONE_",
-      "sourceRecordId": "CONT_AWD_FA714624C0019_9700_-NONE-_-NONE-",
-      "sourceSystem": "USAspending",
-      "title": "YELLOWFIN PROJECT DATA SUBSCRIPTION AND ANALYSIS SUPPLY FIRST-PARTY DATA WITH ANALYTIC, AND MACHINE LEARNING CAPABILITIES TO TRANSFORM DATA INTO INFORMATION AT SCALE AND SPEED IN SUPPORT OF MISSION ANALYSTS.",
-      "date": "2026-10-21"
-    },
-    {
       "opportunityId": "auto_usaspending_CONT_AWD_FA867210C0002_9700__NONE___NONE_",
       "sourceRecordId": "CONT_AWD_FA867210C0002_9700_-NONE-_-NONE-",
       "sourceSystem": "USAspending",
@@ -1678,6 +1680,27 @@
       "sourceSystem": "USAspending",
       "title": "THE PURPOSE OF THIS ACTION IS TO AWARD A NEW FIVE (5) YEAR TASK ORDER UNDER THE RS3 CONTRACT FOR MODELING AND SIMULATION, ANALYSIS, ENGINEERING, NETWORKING, AND EXPERIMENTATION SUPPORT",
       "date": "2026-10-31"
+    },
+    {
+      "opportunityId": "opp_4ee47d7c94491f12b9c9",
+      "sourceRecordId": "opp_4ee47d7c94491f12b9c9",
+      "sourceSystem": "Normalized capture source packet",
+      "title": "C5I sustainment bridge",
+      "date": "2026-11-15"
+    },
+    {
+      "opportunityId": "opp_e0d6b6389aefeb516226",
+      "sourceRecordId": "opp_e0d6b6389aefeb516226",
+      "sourceSystem": "Normalized capture source packet",
+      "title": "PMA-263 small UAS services / RS3",
+      "date": "2026-11-18"
+    },
+    {
+      "opportunityId": "auto_usaspending_CONT_AWD_HC102826F0010_9700_HC102820D0001_9700",
+      "sourceRecordId": "CONT_AWD_HC102826F0010_9700_HC102820D0001_9700",
+      "sourceSystem": "USAspending",
+      "title": "GSM-O II OPERATIONS AND SUSTAINMENT",
+      "date": "2026-11-18"
     }
   ]
 }
