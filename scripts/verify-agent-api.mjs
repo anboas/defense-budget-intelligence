@@ -591,9 +591,18 @@ try {
   assert.ok(result.payload.data.some((entry) => entry.operation === "records.list" || entry.route?.includes("/records")), "Request logs must identify the called operation or route");
   assert.ok(result.payload.data.every((entry) => entry.traceId && Number.isFinite(Number(entry.latencyMs))), "Every request log entry must expose a trace and measured latency");
   assert.equal(result.payload.meta.retentionDays, 90);
+  assert.equal(result.payload.meta.total, result.payload.meta.summary.retained, "Agent API summaries must cover the exact retained result set");
+  assert.equal(result.payload.meta.summary.requests, result.payload.meta.summary.agentRequests, "This Agent API fixture must reconcile its operational lane");
+  assert.equal(result.payload.meta.summary.terminalRequests, result.payload.meta.summary.succeeded + result.payload.meta.summary.failed);
   assert.match(result.payload.meta.redaction, /secrets.*prompts.*response bodies/i);
   const requestLedgerJson = JSON.stringify(result.payload.data);
   assert.doesNotMatch(requestLedgerJson, /authorization|cookie|passwordProof|requestBody|responseBody|prompt/i, "The request ledger must never expose headers, credentials, prompts, or bodies");
+  result = await body(await request(instance.baseUrl, "/api/v1/agent/api-requests?limit=3", { token: agentToken }));
+  assert.equal(result.payload.data.length, 3);
+  assert.ok(result.payload.meta.total > result.payload.data.length, "Exact ledger totals must not collapse to the bounded response slice");
+  assert.equal(result.payload.meta.summary.retained, result.payload.meta.total);
+  assert.equal(result.payload.meta.summary.returned, 3);
+  assert.equal(result.payload.meta.summary.truncated, true);
 
   await stopPages(instance);
   instance = await startPages(persistPath);

@@ -45,6 +45,7 @@ import { registerAcquisitionRuntimeRoutes } from "./acquisition-runtime-routes.m
 import { registerAccountRegistrationRoute, registrationPublicStatus } from "./account-registration-routes.mjs";
 import { registerSessionManagementRoutes } from "./session-management-routes.mjs";
 import { postgresEntitlementDecision, registerSaasControlPlaneRoutes } from "./saas-control-plane-routes.mjs";
+import { postgresApiRequestLog } from "./api-observability.mjs";
 import { ROLE_LABELS, WORKSPACE_ROLE_IDS, accessCapabilities } from "../src/access-model.js";
 const COOKIE_NAME = "dbi_session";
 const SESSION_DAYS = Math.min(14, Math.max(1, Number(process.env.AUTH_SESSION_DAYS || 14)));
@@ -1123,28 +1124,10 @@ export async function registerAuthRoutes(app, pool) {
   app.get("/api/v1/auth/api-requests", async (request, reply) => {
     const user = await authenticated(pool, request);
     if (!user) return reply.code(401).send({ error: "sign in required" });
-    if (!user.active_workspace_id) return { requests: [], summary: { retained: 0, requests: 0, succeeded: 0, failed: 0, successRate: null, averageLatencyMs: 0, p95LatencyMs: 0, inputTokens: 0, outputTokens: 0, retentionDays: 90 } };
+    if (!user.active_workspace_id) return { requests: [], summary: { retained: 0, returned: 0, truncated: false, requests: 0, succeeded: 0, failed: 0, inProgress: 0, terminalRequests: 0, successRate: null, averageLatencyMs: 0, p95LatencyMs: 0, inputTokens: 0, outputTokens: 0, aiRequests: 0, agentRequests: 0, clientErrors: 0, credentialEvents: 0, windowStart: null, windowEnd: null, retentionDays: 90 } };
     const allowed = await canAdministerWorkspace(pool, user, user.active_workspace_id);
     if (!allowed) return reply.code(403).send({ error: "Workspace manager access is required" });
-    const result = await pool.query(`SELECT * FROM app_api_request_log WHERE workspace_id = $1 ORDER BY completed_at DESC LIMIT 500`, [user.active_workspace_id]);
-    const calls = result.rows.filter((row) => row.request_kind !== "credential_lifecycle");
-    const latencies = calls.map((row) => Number(row.latency_ms || 0)).sort((a, b) => a - b);
-    const succeeded = calls.filter((row) => row.status === "succeeded").length;
-    return {
-      requests: result.rows.map((row) => ({ id: row.id, workspaceId: row.workspace_id, userId: row.user_id, principalType: row.principal_type,
-        principalId: row.principal_id, requestKind: row.request_kind, provider: row.provider, operation: row.operation, method: row.method,
-        route: row.route, status: row.status, httpStatus: row.http_status, stage: row.stage, model: row.model, credentialId: row.credential_id,
-        credentialScope: row.credential_scope, providerRequestId: row.provider_request_id, traceId: row.trace_id, responseId: row.response_id,
-        latencyMs: row.latency_ms, inputTokens: row.input_tokens, outputTokens: row.output_tokens, retryCount: row.retry_count,
-        retryable: row.retryable, errorCode: row.error_code, errorMessage: row.error_message, metadata: row.metadata_json,
-        startedAt: row.started_at, completedAt: row.completed_at })),
-      summary: { retained: result.rowCount, requests: calls.length, succeeded, failed: calls.length - succeeded,
-        successRate: calls.length ? Math.round((succeeded / calls.length) * 10_000) / 100 : null,
-        averageLatencyMs: calls.length ? Math.round(calls.reduce((sum, row) => sum + Number(row.latency_ms || 0), 0) / calls.length) : 0,
-        p95LatencyMs: latencies.length ? latencies[Math.min(latencies.length - 1, Math.ceil(latencies.length * 0.95) - 1)] : 0,
-        inputTokens: calls.reduce((sum, row) => sum + Number(row.input_tokens || 0), 0), outputTokens: calls.reduce((sum, row) => sum + Number(row.output_tokens || 0), 0),
-        retentionDays: 90, redaction: "Secrets, authorization headers, prompts, request bodies, and response bodies are never retained." },
-    };
+    return postgresApiRequestLog(pool, user.active_workspace_id, request.query?.limit);
   });
 
   app.get("/api/v1/auth/event-ai/capability", async (request, reply) => {

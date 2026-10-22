@@ -1096,6 +1096,19 @@ async function verifyApiLifecycle(persistPath) {
     assert.equal(transportGapEntry?.metadata?.evidence?.structuredSourceCount, 1, "D1 logs must distinguish structured claims from provider citations");
     assert.match(transportGapEntry?.responseId || "", /^mock-producer-/, "D1 logs must retain the provider response ID");
     assert.equal(body.meta.retentionDays, 90);
+    assert.equal(body.meta.total, body.meta.summary.retained, "The ledger total and summary must cover the exact retained result set");
+    assert.equal(body.meta.summary.returned, body.data.length);
+    assert.equal(body.meta.summary.requests, body.meta.summary.aiRequests + body.meta.summary.agentRequests, "AI and Agent API lanes must reconcile to operational calls");
+    assert.equal(body.meta.summary.retained, body.meta.summary.requests + body.meta.summary.clientErrors + body.meta.summary.credentialEvents, "Operational and diagnostic lanes must reconcile to retained activity");
+    assert.equal(body.meta.summary.terminalRequests, body.meta.summary.succeeded + body.meta.summary.failed);
+    assert.equal(body.meta.summary.successRate, Math.round((body.meta.summary.succeeded / body.meta.summary.terminalRequests) * 1000) / 10, "Success rate must exclude active and diagnostic activity");
+    response = await apiRequest(baseUrl, "/api/v1/agent/api-requests?limit=2", { cookie: ownerCookie });
+    body = await response.json();
+    assert.equal(body.data.length, 2);
+    assert.ok(body.meta.total > body.data.length, "The fixture must prove summary behavior beyond the bounded table slice");
+    assert.equal(body.meta.summary.retained, body.meta.total);
+    assert.equal(body.meta.summary.returned, 2);
+    assert.equal(body.meta.summary.truncated, true);
     assert.doesNotMatch(JSON.stringify(body.data), /authorization|cookie|passwordProof|requestBody|responseBody|prompt|sk-verification/i, "D1 request logs must not expose secrets, prompts, headers, or bodies");
 
     response = await apiRequest(baseUrl, "/api/v1/auth/registration");

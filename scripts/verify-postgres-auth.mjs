@@ -458,6 +458,16 @@ assert.equal(transportGapEntry?.metadata?.evidence?.webSearchCallCount, 0);
 assert.equal(transportGapEntry?.metadata?.evidence?.structuredSourceCount, 1);
 assert.match(transportGapEntry?.responseId || "", /^mock-producer-/);
 assert.equal(body.summary.retentionDays, 90);
+assert.equal(body.summary.retained, body.summary.requests + body.summary.clientErrors + body.summary.credentialEvents, "PostgreSQL observability lanes must reconcile to exact retained activity");
+assert.equal(body.summary.requests, body.summary.aiRequests + body.summary.agentRequests, "PostgreSQL AI and Agent API lanes must reconcile to operational calls");
+assert.equal(body.summary.terminalRequests, body.summary.succeeded + body.summary.failed);
+assert.equal(body.summary.returned, body.requests.length);
+response = await request("/api/v1/auth/api-requests?limit=2", { cookie: ownerCookie });
+body = await response.json();
+assert.equal(body.requests.length, 2);
+assert.ok(body.summary.retained > body.requests.length, "PostgreSQL observability totals must not collapse to the bounded response slice");
+assert.equal(body.summary.returned, 2);
+assert.equal(body.summary.truncated, true);
 assert.doesNotMatch(JSON.stringify(body.requests), /authorization|cookie|passwordProof|requestBody|responseBody|prompt|sk-postgres/i, "PostgreSQL request logs must not expose secrets, prompts, headers, or bodies");
 
 response = await request("/api/v1/auth/registration");

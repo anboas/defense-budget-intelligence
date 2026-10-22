@@ -669,6 +669,7 @@ button {
   .account-gate { padding: 12px; }
   .account-gate__card { padding: 24px 18px; }
   .account-gate .if-input { min-height: 44px; }
+  button.if-chart-bar { min-height: 44px; }
 }
 
 .masthead__brand {
@@ -5818,6 +5819,7 @@ td .dot {
 .ops-request-detail dt { color: var(--if-text-muted); font-size: var(--if-font-size-xs); font-weight: var(--if-font-weight-black); text-transform: uppercase; }
 .ops-request-detail dd { min-width: 0; margin: 0; color: var(--if-text); font-size: var(--if-font-size-sm); line-height: var(--if-line-height-normal); overflow-wrap: anywhere; }
 .ops-request-detail code { white-space: normal; overflow-wrap: anywhere; }
+
 .dbi-data-table__select { position: sticky !important; left: 0; z-index: 8 !important; width: 38px; min-width: 38px; max-width: 38px; padding: 0 !important; background: inherit !important; text-align: center; }
 .dbi-data-table__check { display: grid; width: 100%; min-height: 36px; place-items: center; cursor: pointer; }
 .dbi-data-table__select input { width: 16px; height: 16px; }

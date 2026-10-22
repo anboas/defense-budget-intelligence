@@ -285,14 +285,14 @@ try {
 
   await page.goto(`${BASE_URL}#/budget-spend/connections?connectionsView=activity`, { waitUntil: "domcontentloaded" });
   await page.waitForSelector("[data-api-request-summary]");
-  assert.equal(await page.locator("[data-api-request-summary] .if-management-card").count(), 5, "Runtime & API Log must summarize request volume, success, latency, tokens, and client errors");
+  assert.equal(await page.locator("[data-api-request-summary] .if-management-card").count(), 5, "API and AI observability must summarize request volume, success, latency, tokens, and client errors");
   await page.waitForSelector("[data-api-request-table], [data-api-request-empty]");
   const requestTableCount = await page.locator("[data-api-request-table]").count();
   if (requestTableCount) assert.ok(await page.locator('[data-api-request-table] tbody tr').count() <= 10, "API Log should default to a scannable ten-row desktop page");
-  else assert.match(await page.locator("[data-api-request-empty]").innerText(), /No runtime or API requests retained/i, "A fresh workspace should expose an explicit empty request ledger while retaining the Runtime & API Log shell");
+  else assert.match(await page.locator("[data-api-request-empty]").innerText(), /No operational activity retained/i, "A fresh workspace should expose an explicit empty activity ledger while retaining the observability shell");
   const requestChartCount = await page.locator("[data-api-observability-charts] .if-chart-card").count();
   assert.ok(requestChartCount === 0 || requestChartCount === 2, `API Log should render either no charts for a fresh workspace or the complete two-chart observability band, got ${requestChartCount}`);
-  assert.match(await page.locator("[data-ops-activity]").innerText(), /Runtime & API[\s\S]*Workspace changes/i, "Connections activity must expose distinct runtime/API and workspace-change ledgers");
+  assert.match(await page.locator("[data-ops-activity]").innerText(), /API & AI[\s\S]*Workspace changes/i, "Connections activity must expose distinct API/AI and workspace-change ledgers");
   assert.equal(await page.locator('[data-ops-activity] [data-subsection-navigation] .if-tab').count(), 2, "API Log must switch between ledgers inside one labeled subsection instead of stacking both tables");
   await assertPageBodyGutter(page, "[data-ops-activity]", "API Log");
 
@@ -1099,7 +1099,7 @@ try {
   assert.match(await page.locator("[data-api-observability-charts] .if-chart-tooltip").innerText(), /click to filter/i, "Chart bars must expose a visible hover value and action");
   await outcomeBar.click();
   assert.equal(await outcomeBar.getAttribute("aria-pressed"), "true", "Clicking an outcome bar must select it");
-  await page.locator('[data-api-request-table]').getByRole("button", { name: "Filter Runtime and API request log", exact: true }).click();
+  await page.locator('[data-api-request-table]').getByRole("button", { name: "Filter API and AI operational activity", exact: true }).click();
   assert.match(await page.getByRole("button", { name: /Status filter:/ }).getAttribute("aria-label"), /succeeded|failed|rejected|rate limited/i, "Outcome selection must synchronize the request-table status filter");
   await page.keyboard.press("Escape");
   await outcomeBar.click();
@@ -1107,7 +1107,7 @@ try {
   const latencyBar = page.locator("[data-api-observability-charts] .if-chart-card").nth(1).locator("button.if-chart-bar").first();
   await latencyBar.click();
   assert.equal(await latencyBar.getAttribute("aria-pressed"), "true", "Clicking a latency bar must select its operation filter");
-  await page.locator('[data-api-request-table]').getByRole("button", { name: "Filter Runtime and API request log", exact: true }).click();
+  await page.locator('[data-api-request-table]').getByRole("button", { name: "Filter API and AI operational activity", exact: true }).click();
   assert.doesNotMatch(await page.getByRole("button", { name: /Operation filter:/ }).getAttribute("aria-label"), /: All$/i, "Latency selection must synchronize the request-table operation filter");
   await page.keyboard.press("Escape");
   await latencyBar.click();
@@ -1212,14 +1212,24 @@ try {
   assert.equal(await page.locator('[data-primary-workspace][aria-current="page"]').count(), 0, "Integrations must remain outside primary product navigation");
   await page.getByRole("button", { name: "Add credential" }).click();
   const agentDialog = page.locator("[data-agent-key-dialog]");
+  const workflowProfile = agentDialog.getByRole("radio", { name: /^Workflow operator/ });
+  await workflowProfile.waitFor();
+  assert.equal(await agentDialog.getByRole("radio").count(), 4, "Agent credentials must start from four understandable access profiles");
+  assert.equal(await workflowProfile.isChecked(), true, "The standard workflow profile must be selected by default");
+  await agentDialog.locator("details").filter({ hasText: /selected permissions?/ }).locator("summary").click();
   await agentDialog.getByText("records:read", { exact: true }).waitFor();
+  assert.equal(await agentDialog.getByText("Read records", { exact: true }).count(), 1, "Advanced permissions must pair human labels with raw scope identifiers");
+  await page.screenshot({ path: "test-results/admin-agent-access-policy-desktop.png", fullPage: true });
   await agentDialog.getByLabel("Name").fill("Browser verifier");
   await agentDialog.getByRole("button", { name: "Create credential" }).click();
   await page.locator(".agent-token-once code").waitFor();
   assert.match(await page.locator(".agent-token-once code").textContent(), /^dbi_agent_/, "Agent credential must be shown exactly once after creation");
   await agentDialog.getByRole("button", { name: "Done" }).click();
   await page.getByRole("button", { name: "Revoke Browser verifier" }).click();
-  await page.getByText("Revoked", { exact: true }).waitFor();
+  const inactiveCredentials = page.locator('[data-profile-agents] details').filter({ hasText: "inactive credential" });
+  await inactiveCredentials.waitFor();
+  await inactiveCredentials.locator("summary").click();
+  await page.locator('[data-agent-credential-state="revoked"]').filter({ hasText: "Browser verifier" }).waitFor();
 
   await page.goto(`${BASE_URL}#/budget-spend/explorer?spendView=timeline`, { waitUntil: "domcontentloaded" });
   await page.waitForSelector("[data-capture-timeline-row]");
