@@ -78,6 +78,7 @@ import { D1_RESEARCH_OPERATIONS_SCHEMA, researchOperationsResponse, researchSche
 import { agentOpenApiDocument } from "./agent-api-openapi.js";
 import { catalogEventByIdFromRows } from "./event-catalog.js";
 import { loadD1RecordUniverse } from "./d1-record-universe.js";
+import { apiRequestFromRow } from "./d1-api-observability.js";
 import {
   completeEventCatalog,
   eventCatalogResponse,
@@ -1881,49 +1882,6 @@ async function recordActivity(db, principal, action, entityType, entityId = "", 
   }, { eventType: "action", action: entityType === "user" && !String(action).startsWith("user_emulation") ? String(action).replace(/^user_/, "account_") : action, surface: entityType === "user" ? "users" : entityType === "event" ? "schedule" : entityType, targetType: entityType, targetId: entityId });
 }
 
-function safeObject(value) {
-  try {
-    const parsed = JSON.parse(value || "{}");
-    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
-  } catch {
-    return {};
-  }
-}
-
-function apiRequestFromRow(row) {
-  return {
-    id: row.id,
-    workspaceId: row.workspace_id || null,
-    userId: row.user_id || null,
-    principalType: row.principal_type,
-    principalId: row.principal_id,
-    requestKind: row.request_kind,
-    provider: row.provider,
-    operation: row.operation,
-    method: row.method || null,
-    route: row.route || null,
-    status: row.status,
-    httpStatus: Number(row.http_status || 0),
-    stage: row.stage || null,
-    model: row.model || null,
-    credentialId: row.credential_id || null,
-    credentialScope: row.credential_scope || null,
-    providerRequestId: row.provider_request_id || null,
-    traceId: row.trace_id || null,
-    responseId: row.response_id || null,
-    latencyMs: Number(row.latency_ms || 0),
-    inputTokens: Number(row.input_tokens || 0),
-    outputTokens: Number(row.output_tokens || 0),
-    retryCount: Number(row.retry_count || 0),
-    retryable: Boolean(row.retryable),
-    errorCode: row.error_code || null,
-    errorMessage: row.error_message || null,
-    metadata: safeObject(row.metadata_json),
-    startedAt: row.started_at,
-    completedAt: row.completed_at,
-  };
-}
-
 async function recordApiRequest(db, entry = {}) {
   const completedAt = cleanDate(entry.completedAt) || new Date().toISOString();
   const startedAt = cleanDate(entry.startedAt) || completedAt;
@@ -3145,28 +3103,65 @@ async function apiRequestsResponse(request, db, principal) {
   if (provider) { clauses.push("provider = ?"); values.push(provider); }
   if (status) { clauses.push("status = ?"); values.push(status); }
   if (requestKind) { clauses.push("request_kind = ?"); values.push(requestKind); }
-  const result = await db.prepare(`SELECT * FROM dbi_api_request_log WHERE ${clauses.join(" AND ")} ORDER BY completed_at DESC LIMIT ?`)
-    .bind(...values, limit).all();
+  const where = clauses.join(" AND ");
+  const operational = "request_kind NOT IN ('credential_lifecycle', 'client_error')";
+  const [result, aggregate] = await Promise.all([
+    db.prepare(`SELECT * FROM dbi_api_request_log WHERE ${where} ORDER BY completed_at DESC LIMIT ?`).bind(...values, limit).all(),
+    db.prepare(`SELECT
+      COUNT(*) AS retained,
+      SUM(CASE WHEN ${operational} THEN 1 ELSE 0 END) AS requests,
+      SUM(CASE WHEN request_kind = 'openai' THEN 1 ELSE 0 END) AS ai_requests,
+      SUM(CASE WHEN request_kind NOT IN ('openai', 'client_error', 'credential_lifecycle') THEN 1 ELSE 0 END) AS agent_requests,
+      SUM(CASE WHEN request_kind = 'client_error' THEN 1 ELSE 0 END) AS client_errors,
+      SUM(CASE WHEN request_kind = 'credential_lifecycle' THEN 1 ELSE 0 END) AS credential_events,
+      SUM(CASE WHEN ${operational} AND status IN ('accepted', 'completed', 'succeeded') THEN 1 ELSE 0 END) AS succeeded,
+      SUM(CASE WHEN ${operational} AND status IN ('failed', 'rate_limited', 'rejected') THEN 1 ELSE 0 END) AS failed,
+      SUM(CASE WHEN ${operational} AND status IN ('pending', 'queued', 'researching', 'running', 'verifying') THEN 1 ELSE 0 END) AS in_progress,
+      SUM(CASE WHEN ${operational} AND latency_ms > 0 THEN 1 ELSE 0 END) AS latency_count,
+      COALESCE(ROUND(AVG(CASE WHEN ${operational} AND latency_ms > 0 THEN latency_ms END)), 0) AS average_latency_ms,
+      COALESCE(SUM(CASE WHEN ${operational} THEN input_tokens ELSE 0 END), 0) AS input_tokens,
+      COALESCE(SUM(CASE WHEN ${operational} THEN output_tokens ELSE 0 END), 0) AS output_tokens,
+      MIN(completed_at) AS window_start,
+      MAX(completed_at) AS window_end
+    FROM dbi_api_request_log WHERE ${where}`).bind(...values).first(),
+  ]);
   const rows = (result.results || []).map(apiRequestFromRow);
-  const requestRows = rows.filter((row) => row.requestKind !== "credential_lifecycle");
-  const latencies = requestRows.map((row) => row.latencyMs).filter((value) => value > 0).sort((left, right) => left - right);
-  const percentileIndex = latencies.length ? Math.min(latencies.length - 1, Math.ceil(latencies.length * 0.95) - 1) : -1;
-  const succeeded = requestRows.filter((row) => row.status === "succeeded").length;
+  const latencyCount = Number(aggregate?.latency_count || 0);
+  const percentileOffset = latencyCount ? Math.min(latencyCount - 1, Math.ceil(latencyCount * 0.95) - 1) : 0;
+  const percentile = latencyCount ? await db.prepare(`SELECT latency_ms FROM dbi_api_request_log WHERE ${where} AND ${operational} AND latency_ms > 0 ORDER BY latency_ms ASC LIMIT 1 OFFSET ?`).bind(...values, percentileOffset).first() : null;
+  const retained = Number(aggregate?.retained || 0);
+  const requests = Number(aggregate?.requests || 0);
+  const succeeded = Number(aggregate?.succeeded || 0);
+  const failed = Number(aggregate?.failed || 0);
+  const terminalRequests = succeeded + failed;
   return agentJson(rows, 200, {
     summary: {
-      retained: rows.length,
-      requests: requestRows.length,
+      retained,
+      returned: rows.length,
+      truncated: retained > rows.length,
+      requests,
       succeeded,
-      failed: requestRows.length - succeeded,
-      successRate: requestRows.length ? Math.round((succeeded / requestRows.length) * 1000) / 10 : null,
-      averageLatencyMs: requestRows.length ? Math.round(requestRows.reduce((sum, row) => sum + row.latencyMs, 0) / requestRows.length) : 0,
-      p95LatencyMs: percentileIndex >= 0 ? latencies[percentileIndex] : 0,
-      inputTokens: requestRows.reduce((sum, row) => sum + row.inputTokens, 0),
-      outputTokens: requestRows.reduce((sum, row) => sum + row.outputTokens, 0),
+      failed,
+      inProgress: Number(aggregate?.in_progress || 0),
+      terminalRequests,
+      successRate: terminalRequests ? Math.round((succeeded / terminalRequests) * 1000) / 10 : null,
+      averageLatencyMs: Number(aggregate?.average_latency_ms || 0),
+      p95LatencyMs: Number(percentile?.latency_ms || 0),
+      inputTokens: Number(aggregate?.input_tokens || 0),
+      outputTokens: Number(aggregate?.output_tokens || 0),
+      aiRequests: Number(aggregate?.ai_requests || 0),
+      agentRequests: Number(aggregate?.agent_requests || 0),
+      clientErrors: Number(aggregate?.client_errors || 0),
+      credentialEvents: Number(aggregate?.credential_events || 0),
+      windowStart: aggregate?.window_start || null,
+      windowEnd: aggregate?.window_end || null,
+      retentionDays: RETENTION_DAYS,
     },
-    retentionDays: 90,
+    retentionDays: RETENTION_DAYS,
     redaction: "Metadata only. Secrets, authorization headers, prompts, and response bodies are never stored.",
-    total: rows.length,
+    total: retained,
+    returned: rows.length,
+    truncated: retained > rows.length,
     limit,
   });
 }

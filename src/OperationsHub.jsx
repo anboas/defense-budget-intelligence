@@ -37,6 +37,7 @@ import { SectionSubnavigation } from "./SectionedPageHeader.jsx";
 import { useNotifications } from "./NotificationContext.jsx";
 import { directorySelection, openWorkspaceProfile, workspaceTeamHref } from "./workspace-profile-routes.js";
 import { eventDateTimeInputValue } from "./event-date-input.js";
+import { apiActivityLaneCounts, filterApiActivity, summarizeApiActivity } from "./api-observability.js";
 import "./MyWork.css";
 import ActionsWorkspace from "./ActionsWorkspace.jsx";
 import TodayWorkspace from "./TodayWorkspace.jsx";
@@ -790,6 +791,7 @@ function EventsView({ events, records, categories, canManageCategories, canCurat
 
 function ActivityView({ activity, apiRequests = [], apiRequestSummary = null, records, embedded = false }) {
   const [requestFilters, setRequestFilters] = useState({});
+  const [requestLane, setRequestLane] = useState("all");
   const [chartTooltip, setChartTooltip] = useState(null);
   const [ledger, setLedger] = useState("requests");
   const byId = new Map(records.map((record) => [record.opportunityId, record]));
@@ -818,9 +820,15 @@ function ActivityView({ activity, apiRequests = [], apiRequestSummary = null, re
     <div><dt>Trace</dt><dd><code>{entry.traceId || entry.providerRequestId || entry.responseId || "Unavailable"}</code></dd></div>
     <div className="ops-request-detail__wide"><dt>Safe diagnostic</dt><dd>{entry.errorCode || entry.errorMessage ? `${entry.errorCode || "request_failed"}${entry.errorMessage ? ` · ${entry.errorMessage}` : ""}` : "None"}</dd></div>
   </dl>;
-  const summary = apiRequestSummary || { retained: apiRequests.length, requests: apiRequests.filter((entry) => entry.requestKind !== "credential_lifecycle").length, successRate: null, averageLatencyMs: 0, p95LatencyMs: 0, inputTokens: 0, outputTokens: 0 };
-  const callEntries = apiRequests.filter((entry) => entry.requestKind !== "credential_lifecycle");
-  const clientErrorCount = callEntries.filter((entry) => entry.requestKind === "client_error").length;
+  const summary = { ...summarizeApiActivity(apiRequests), ...(apiRequestSummary || {}) };
+  const laneCounts = apiActivityLaneCounts(apiRequests).map((lane) => ({
+    ...lane,
+    count: ({ all: summary.retained, ai: summary.aiRequests, agent: summary.agentRequests, client: summary.clientErrors, security: summary.credentialEvents }[lane.id] ?? lane.count),
+  }));
+  const visibleRequests = filterApiActivity(apiRequests, requestLane);
+  const callEntries = visibleRequests.filter((entry) => entry.requestKind !== "credential_lifecycle");
+  const returnedCount = Number(summary.returned ?? apiRequests.length);
+  const retainedCount = Number(summary.retained ?? apiRequests.length);
   const trend = (() => {
     const ordered = callEntries.map((entry) => ({ ...entry, timestamp: Date.parse(entry.at || "") })).filter((entry) => Number.isFinite(entry.timestamp)).sort((left, right) => left.timestamp - right.timestamp);
     if (ordered.length < 2) return null;
@@ -849,11 +857,14 @@ function ActivityView({ activity, apiRequests = [], apiRequestSummary = null, re
   const latencyByOperation = [...callEntries.reduce((groups, entry) => {
     const key = entry.operation || entry.route || "request";
     const current = groups.get(key) || { id: key, label: key.replaceAll("_", " "), total: 0, count: 0 };
-    current.total += Number(entry.latencyMs || 0);
-    current.count += 1;
+    const latency = Number(entry.latencyMs || 0);
+    if (latency > 0) {
+      current.total += latency;
+      current.count += 1;
+    }
     groups.set(key, current);
     return groups;
-  }, new Map()).values()].map((row) => ({ ...row, value: Math.round(row.total / row.count) })).sort((left, right) => right.value - left.value).slice(0, 6);
+  }, new Map()).values()].filter((row) => row.count).map((row) => ({ ...row, value: Math.round(row.total / row.count) })).sort((left, right) => right.value - left.value).slice(0, 6);
   const latencyMaximum = Math.max(...latencyByOperation.map((row) => row.value), 1);
   const toggleRequestFilter = (key, value) => setRequestFilters((current) => {
     if (current[key] === value) {
@@ -864,16 +875,20 @@ function ActivityView({ activity, apiRequests = [], apiRequestSummary = null, re
     return { ...current, [key]: value };
   });
   return <section className="ops-panel if-operations-workspace" data-ops-activity data-ledger={ledger}>
-    {!embedded ? <ControlPageHeader compact divided eyebrow="Workspace administration" title="Runtime & API Log" summary="Redacted browser failures, request diagnostics, and append-only workspace changes." headingLevel={2} meta={<span className="if-badge if-badge--info">90-day retention</span>} /> : null}
+    {!embedded ? <ControlPageHeader compact divided eyebrow="Workspace administration" title="API & AI observability" summary="Exact retained-window usage, performance, client health, credential changes, and append-only workspace activity." headingLevel={2} meta={<span className="if-badge if-badge--info">90-day retention</span>} /> : null}
     <ControlPageBody compact>
-    <SectionSubnavigation title="Activity ledger" summary="Choose technical request diagnostics or append-only workspace changes." items={[{ id: "requests", label: "Runtime & API", count: apiRequests.length }, { id: "changes", label: "Workspace changes", count: activity.length }]} activeId={ledger} ariaLabel="Log type" onSelect={setLedger} />
+    <SectionSubnavigation title="Activity ledger" summary="Choose API and AI observability or append-only workspace changes." items={[{ id: "requests", label: "API & AI", count: Number(summary.retained || apiRequests.length) }, { id: "changes", label: "Workspace changes", count: activity.length }]} activeId={ledger} ariaLabel="Log type" onSelect={setLedger} />
     {ledger === "requests" ? <><ControlMetricStrip label="Runtime and API request summary" data-api-request-summary items={[
-      { id: "requests", label: "Requests", value: Number(summary.requests || 0).toLocaleString(), meta: `${Number(summary.retained || 0).toLocaleString()} retained entries`, tone: "info", visual: trend ? <ControlSparkline className="if-sparkline--summary" values={trend.requests} labels={trend.labels} label="Requests over the retained window" formatValue={(value) => `${value} requests`} /> : null },
-      { id: "success", label: "Success rate", value: summary.successRate === null ? "No calls" : `${summary.successRate}%`, meta: "Current retained window", tone: summary.successRate === null || summary.successRate >= 99 ? "success" : summary.successRate >= 95 ? "warning" : "danger", visual: trend ? <ControlSparkline className="if-sparkline--summary" values={trend.success} labels={trend.labels} label="Success rate over the retained window" formatValue={(value) => `${value}%`} /> : null },
-      { id: "latency", label: "Average latency", value: `${Number(summary.averageLatencyMs || 0).toLocaleString()} ms`, meta: `P95 ${Number(summary.p95LatencyMs || 0).toLocaleString()} ms`, visual: trend ? <ControlSparkline className="if-sparkline--summary" values={trend.latency} labels={trend.labels} label="Average latency over the retained window" formatValue={(value) => `${value} ms`} /> : null },
+      { id: "requests", label: "API & AI calls", value: Number(summary.requests || 0).toLocaleString(), meta: `${Number(summary.aiRequests || 0).toLocaleString()} AI · ${Number(summary.agentRequests || 0).toLocaleString()} agent`, tone: "info", visual: trend ? <ControlSparkline className="if-sparkline--summary" values={trend.requests} labels={trend.labels} label="Requests over the loaded activity window" formatValue={(value) => `${value} requests`} /> : null },
+      { id: "success", label: "Success rate", value: summary.successRate === null ? "No terminal calls" : `${summary.successRate}%`, meta: `${Number(summary.succeeded || 0).toLocaleString()} succeeded · ${Number(summary.failed || 0).toLocaleString()} failed`, tone: summary.successRate === null || summary.successRate >= 99 ? "success" : summary.successRate >= 95 ? "warning" : "danger", visual: trend ? <ControlSparkline className="if-sparkline--summary" values={trend.success} labels={trend.labels} label="Success rate over the loaded activity window" formatValue={(value) => `${value}%`} /> : null },
+      { id: "latency", label: "P95 latency", value: `${Number(summary.p95LatencyMs || 0).toLocaleString()} ms`, meta: `${Number(summary.averageLatencyMs || 0).toLocaleString()} ms average`, visual: trend ? <ControlSparkline className="if-sparkline--summary" values={trend.latency} labels={trend.labels} label="Average latency over the loaded activity window" formatValue={(value) => `${value} ms`} /> : null },
       { id: "tokens", label: "Token usage", value: (Number(summary.inputTokens || 0) + Number(summary.outputTokens || 0)).toLocaleString(), meta: `${Number(summary.inputTokens || 0).toLocaleString()} in · ${Number(summary.outputTokens || 0).toLocaleString()} out`, tone: "purple", visual: trend ? <ControlSparkline className="if-sparkline--summary" values={trend.tokens} labels={trend.labels} label="Token usage over the retained window" formatValue={(value) => `${value} tokens`} /> : null },
-      { id: "client-errors", label: "Client errors", value: clientErrorCount.toLocaleString(), meta: "Browser render and promise failures", tone: clientErrorCount ? "danger" : "success" },
+      { id: "client-errors", label: "Client errors", value: Number(summary.clientErrors || 0).toLocaleString(), meta: "Browser render and promise failures", tone: Number(summary.clientErrors || 0) ? "danger" : "success" },
     ]} />
+    <section className="if-analytics-panel" aria-label="API activity scope" data-api-observability-scope={requestLane}>
+      <div className="if-analytics-panel__header"><div className="if-analytics-panel__heading"><strong className="if-analytics-panel__title">{Number(summary.retentionDays || 90)}-day observability window</strong><span className="if-analytics-panel__summary">{retainedCount.toLocaleString()} retained · {returnedCount.toLocaleString()} loaded{summary.truncated ? " · table is the newest bounded slice" : ""}</span></div>
+      <ControlTabs ariaLabel="API activity lanes" activeId={requestLane} onSelect={(lane) => { setRequestLane(lane); setRequestFilters({}); }} items={laneCounts.map((lane) => ({ id: lane.id, label: lane.label, badge: lane.count }))} /></div>
+    </section>
     {callEntries.length ? <div className="if-chart-grid if-chart-grid--band" aria-label="API request charts" data-api-observability-charts>
       <article className="if-chart-card if-chart-card--flat">
         <header className="if-chart-card__header"><div><h3 className="if-chart-card__title">Request outcomes</h3><p className="if-chart-card__meta">Select a status to filter the request log</p></div></header>
@@ -885,8 +900,8 @@ function ActivityView({ activity, apiRequests = [], apiRequestSummary = null, re
       </article>
     </div> : null}
     <section className="if-analytics-panel if-analytics-panel--flat" aria-labelledby="api-request-log-title">
-      <header className="if-analytics-panel__header"><div className="if-analytics-panel__heading"><h3 className="if-analytics-panel__title" id="api-request-log-title">Runtime & API requests</h3><p className="if-analytics-panel__summary">Authenticated browser failures, Agent API calls, and OpenAI diagnostics appear here without request bodies, credentials, or URL values.</p></div><strong className="if-analytics-panel__count">{apiRequests.length}</strong></header>
-      {apiRequests.length ? <OperationalDataTable id="api-requests" label="Runtime and API request log" rows={apiRequests} columns={requestColumns} rowKey={(entry) => entry.id} defaultSort={{ key: "at", direction: "desc" }} defaultPageSize={10} defaultMobilePageSize={3} pageSizeOptions={[3, 5, 10, 25, 50, 100]} searchPlaceholder="Search operations, routes, principals, traces, and diagnostics…" exportFilename="api-request-log.csv" selectable={false} filterValues={requestFilters} onFilterChange={setRequestFilters} mobileColumns={["at", "status", "operation", "latency"]} renderDetail={requestDetail} wrapperProps={{ "data-api-request-table": true }} /> : <ControlAsyncState compact state="empty" icon={<Activity size={22} />} title="No runtime or API requests retained" message="Authenticated browser failures, Agent API calls, and OpenAI requests will appear here." data-api-request-empty />}
+      <header className="if-analytics-panel__header"><div className="if-analytics-panel__heading"><h3 className="if-analytics-panel__title" id="api-request-log-title">Operational activity</h3><p className="if-analytics-panel__summary">Authenticated client failures, Agent API calls, AI diagnostics, and credential changes appear here without request bodies, credentials, or URL values.</p></div><strong className="if-analytics-panel__count">{visibleRequests.length}</strong></header>
+      {visibleRequests.length ? <OperationalDataTable id="api-requests" label="API and AI operational activity" rows={visibleRequests} columns={requestColumns} rowKey={(entry) => entry.id} defaultSort={{ key: "at", direction: "desc" }} defaultPageSize={10} defaultMobilePageSize={3} pageSizeOptions={[3, 5, 10, 25, 50, 100]} recordListAt={900} searchPlaceholder="Search operations, routes, principals, traces, and diagnostics…" exportFilename={`api-request-log-${requestLane}.csv`} selectable={false} filterValues={requestFilters} onFilterChange={setRequestFilters} mobileColumns={["at", "status", "operation", "latency"]} renderDetail={requestDetail} wrapperProps={{ "data-api-request-table": true, "data-api-request-lane": requestLane }} /> : <ControlAsyncState compact state="empty" icon={<Activity size={22} />} title={requestLane === "all" ? "No operational activity retained" : `No ${laneCounts.find((lane) => lane.id === requestLane)?.label.toLowerCase() || "operational activity"} retained`} message="Choose another activity lane or wait for new workspace operations." data-api-request-empty />}
     </section></> : <section className="if-analytics-panel if-analytics-panel--flat" aria-labelledby="workspace-activity-title">
       <header className="if-analytics-panel__header"><div className="if-analytics-panel__heading"><h3 className="if-analytics-panel__title" id="workspace-activity-title">Workspace changes</h3><p className="if-analytics-panel__summary">Append-only human and agent mutations across the shared workspace.</p></div><strong className="if-analytics-panel__count">{activity.length}</strong></header>
       {activity.length ? <OperationalDataTable id="workspace-activity" label="Workspace activity log" rows={activity} columns={activityColumns} rowKey={(entry) => entry.id} defaultSort={{ key: "at", direction: "desc" }} searchPlaceholder="Search events, actors, details, and record IDs…" exportFilename="workspace-activity-log.csv" selectable={false} wrapperProps={{ "data-ops-activity-table": true }} /> : <ControlAsyncState compact state="empty" icon={<Activity size={22} />} title="No operator activity" message="Human and agent changes will be recorded here." />}
@@ -1023,7 +1038,7 @@ function ConnectionsView({ auth, state, records, dataset, samOpportunities, manu
   const [surface, setSurface] = useRouteSurface("connectionsView", isSuper ? ["integrations", "credentials", "activity", "operations"] : ["integrations", "credentials", "activity"], "integrations", onSurfaceChange);
   const [credentialProvider, setCredentialProvider] = useState(() => auth?.user?.canManageWorkspace ? "openai" : "agents");
   const credentialSections = [{ id: "openai", label: "OpenAI", hidden: !auth?.user?.canManageWorkspace }, { id: "sam-gov", label: "SAM.gov", hidden: !auth?.user?.canManageWorkspace }, { id: "agents", label: "Agent access", hidden: !auth?.user?.canManageAgents }];
-  const tabs = <ControlTabs ariaLabel="Connections view" activeId={surface} onSelect={setSurface} items={[["integrations", "Integrations"], ["credentials", "Credentials"], ["activity", "API activity"], ...(isSuper ? [["operations", "Operations"]] : [])]} />;
+  const tabs = <ControlTabs ariaLabel="Connections view" activeId={surface} onSelect={setSurface} items={[["integrations", "Integrations"], ["credentials", "Credentials"], ["activity", "Observability"], ...(isSuper ? [["operations", "Operations"]] : [])]} />;
   return <section className="ops-panel connections-surface" data-connections-surface={surface}>
     <ControlWorkbenchHeader eyebrow="Workspace administration" title="Integrations & API" summary="Source coverage, protected credentials, and technical request diagnostics in one bounded surface." tabs={tabs} />
     {surface === "integrations" ? <Suspense fallback={<RouteFallback title="integrations" />}><IntegrationManagement embedded auth={auth} dataset={dataset} samOpportunities={samOpportunities} manualProcurement={manualProcurement} procurementDelta={procurementDelta} subawardSnapshot={subawardSnapshot} budgetGeneratedAt={budgetGeneratedAt} awardGeneratedAt={awardGeneratedAt} contractMonitor={contractMonitor || { metadata: {}, records: [] }} contractMonitorState={contractMonitorState === "idle" ? "loading" : contractMonitorState} onRetryContractMonitor={onRetryContractMonitor} /></Suspense> : null}
