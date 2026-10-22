@@ -1,7 +1,7 @@
 {
   "metadata": {
     "schemaVersion": "1.0.0",
-    "generatedAt": "2026-10-15T19:39:17.083Z",
+    "generatedAt": "2026-10-22T15:32:33.993Z",
     "sourceAuthority": "official_primary",
     "sources": {
       "govinfo": "https://www.govinfo.gov/developers",
@@ -14,11 +14,11 @@
       "committeeReports": 3,
       "enactedProvisions": 16,
       "exactRelations": 50,
-      "failures": 163
+      "failures": 164
     },
     "caveat": "Package collection is bounded to defense-titled GovInfo results. Report and law linkage is promoted only when exact bill or law identifiers are published. A separately reviewed FY2024 House RDT&E Army table supplies page-cited committee marks; Senate, conference, and enacted line-item amounts remain unasserted until their official tables are parsed.",
     "apiCredential": "public-demo",
-    "contentHash": "bbbeff5ba5cbe4c479a3"
+    "contentHash": "8f1b2fa4cb05eed4d12c"
   },
   "measures": [
     {
@@ -198,12 +198,7 @@
       "label": "FY2025 National Defense Authorization Act",
       "title": "National Defense Authorization Act for Fiscal Year 2025",
       "sourceUrl": "https://www.congress.gov/bill/118th-congress/senate-bill/4638",
-      "baseline": "exact-official-identifier",
-      "latestAction": {
-        "actionDate": "2024-07-08",
-        "text": "Placed on Senate Legislative Calendar under General Orders. Calendar No. 433."
-      },
-      "updateDate": "2026-02-25T12:03:21Z"
+      "baseline": "exact-official-identifier"
     },
     {
       "id": "legislative-measure:118:hr:4365",
@@ -1672,6 +1667,16 @@
     },
     {
       "stage": "summary",
+      "packageId": "CRPT-119hrpt849",
+      "error": "429 {\n  \"error\": {\n    \"code\": \"OVER_RATE_LIMIT\",\n    \"message\": \"You have exceeded your rate limit. Try again later or contact us at govinfo@gpo.gov for assistance\"\n  }\n}"
+    },
+    {
+      "stage": "summary",
+      "packageId": "CRPT-119hrpt843",
+      "error": "429 {\n  \"error\": {\n    \"code\": \"OVER_RATE_LIMIT\",\n    \"message\": \"You have exceeded your rate limit. Try again later or contact us at govinfo@gpo.gov for assistance\"\n  }\n}"
+    },
+    {
+      "stage": "summary",
       "packageId": "CRPT-119hrpt829",
       "error": "429 {\n  \"error\": {\n    \"code\": \"OVER_RATE_LIMIT\",\n    \"message\": \"You have exceeded your rate limit. Try again later or contact us at govinfo@gpo.gov for assistance\"\n  }\n}"
     },
@@ -1852,16 +1857,6 @@
     },
     {
       "stage": "summary",
-      "packageId": "CRPT-119hrpt374",
-      "error": "429 {\n  \"error\": {\n    \"code\": \"OVER_RATE_LIMIT\",\n    \"message\": \"You have exceeded your rate limit. Try again later or contact us at govinfo@gpo.gov for assistance\"\n  }\n}"
-    },
-    {
-      "stage": "summary",
-      "packageId": "CRPT-119srpt91",
-      "error": "429 {\n  \"error\": {\n    \"code\": \"OVER_RATE_LIMIT\",\n    \"message\": \"You have exceeded your rate limit. Try again later or contact us at govinfo@gpo.gov for assistance\"\n  }\n}"
-    },
-    {
-      "stage": "summary",
       "packageId": "PLAW-119publ116",
       "error": "429 {\n  \"error\": {\n    \"code\": \"OVER_RATE_LIMIT\",\n    \"message\": \"You have exceeded your rate limit. Try again later or contact us at govinfo@gpo.gov for assistance\"\n  }\n}"
     },
@@ -1939,6 +1934,11 @@
       "stage": "summary",
       "packageId": "PLAW-118publ63",
       "error": "429 {\n  \"error\": {\n    \"code\": \"OVER_RATE_LIMIT\",\n    \"message\": \"You have exceeded your rate limit. Try again later or contact us at govinfo@gpo.gov for assistance\"\n  }\n}"
+    },
+    {
+      "stage": "congress-bill",
+      "measureId": "legislative-measure:118:s:4638",
+      "error": "429 {\n  \"error\": {\n    \"code\": \"OVER_RATE_LIMIT\",\n    \"message\": \"You have exceeded your rate limit. Try again later or contact us for assistance: https://api.congress.gov:443\"\n  }\n}"
     },
     {
       "stage": "congress-bill",
