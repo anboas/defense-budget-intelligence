@@ -980,8 +980,10 @@ for (const row of strategic.tenantAssignments || []) {
   if (entityKeys.location.has(row.locationId)) addRelation("installation-tenant-at-location", row.id, row.locationId, evidence("strategic-intelligence", "reviewed-organization-location", "reviewed", row.sourceUrl, row.reviewState));
   const organizationId = organization(row.organizationName, "strategic-intelligence", {}, { identityClass: "government" });
   if (organizationId) addRelation("installation-tenant-organization", row.id, organizationId, evidence("strategic-intelligence", "reviewed-primary-source-organization", "reviewed", row.sourceUrl, row.reviewState));
-  const sourceId = source(row.sourceUrl, "strategic-intelligence", `${row.organizationName} source`);
-  if (sourceId) addRelation("supported-by-source", row.id, sourceId, evidence("strategic-intelligence", "reviewed-primary-source", "reviewed", row.sourceUrl, row.reviewState));
+  for (const url of row.sourceUrls?.length ? row.sourceUrls : [row.sourceUrl]) {
+    const sourceId = source(url, "strategic-intelligence", `${row.organizationName} source`);
+    if (sourceId) addRelation("supported-by-source", row.id, sourceId, evidence("strategic-intelligence", "reviewed-identity-source", "reviewed", url, row.reviewState));
+  }
 }
 for (const row of strategic.competitiveSignals || []) {
   addEntity("competitive-signal", { ...row, sourceArtifact: "strategic-intelligence" });

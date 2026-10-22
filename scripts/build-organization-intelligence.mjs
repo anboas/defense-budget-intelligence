@@ -123,7 +123,7 @@ for (const row of selected) {
   const vendorNames = buyerProfile ? unique(organizationAwards.map((award) => award.recipient)).slice(0, 25) : [];
   const sourceUrls = unique([
     ...roles.flatMap((role) => role.sourceIds || []).map((sourceId) => sourceById.get(sourceId)?.url),
-    ...missionTenants.map((tenant) => tenant.sourceUrl),
+    ...missionTenants.flatMap((tenant) => tenant.sourceUrls?.length ? tenant.sourceUrls : [tenant.sourceUrl]),
     ...programs.flatMap((item) => (baselinesByProgram.get(item.id) || []).map((baseline) => baseline.sourceUrl)),
     ...organizationFlows.map((flow) => flow.sourceUrl),
     ...organizationAwards.slice(0, 5).map(awardUrl),

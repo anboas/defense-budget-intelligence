@@ -19,6 +19,7 @@ const officialUrl = (value) => {
   } catch { return ""; }
 };
 const sourceUrls = (row) => (row.sourceUrls || []).flatMap((value) => String(value || "").split(/\s*;\s*/)).map(officialUrl).filter(Boolean);
+const unique = (values) => [...new Set((values || []).filter(Boolean))];
 
 const forecasts = (calendar.records || []).filter((row) => (row.ingestionChannels || []).some((channel) => channel.id === "agency-forecast"))
   .map((row) => ({
@@ -48,11 +49,21 @@ for (const [locationId, profile] of Object.entries(metadata.locations || {})) {
   if (!sourceUrl) continue;
   const missionId = `mission-assignment:${hash(`${locationId}|${profile.summary}`)}`;
   missionAssignments.push({ id: missionId, locationId: `location:${locationId}`, label: `${location.name} mission`, summary: profile.summary, verifiedClaims: profile.evidence.verifiedClaims || [], reviewedAt: profile.evidence.reviewedAt || profile.evidence.auditedAt || null, sourceUrl, supports: profile.evidence.primarySource.supports || null, reviewState: "reviewed" });
-  for (const organization of profile.identity?.organizations || []) {
-    const organizationUrl = officialUrl(organization.url);
-    if (!organization.name || !organizationUrl) continue;
-    tenantAssignments.push({ id: `installation-tenant:${hash(`${locationId}|${organization.name}`)}`, locationId: `location:${locationId}`, organizationName: organization.name, label: `${organization.name} at ${location.name}`, sourceUrl: organizationUrl, reviewedAt: profile.evidence.reviewedAt || null, reviewState: "reviewed" });
-  }
+  const tenantSourceUrls = unique([
+    sourceUrl,
+    ...(profile.identity?.organizations || []).map((organization) => officialUrl(organization.url)),
+  ]);
+  tenantAssignments.push({
+    id: `installation-tenant:${hash(`${locationId}|${location.name}`)}`,
+    locationId: `location:${locationId}`,
+    organizationName: location.name,
+    label: location.name,
+    identityBasis: "reviewed-location-identity",
+    sourceUrl: tenantSourceUrls[0],
+    sourceUrls: tenantSourceUrls,
+    reviewedAt: profile.evidence.reviewedAt || profile.evidence.auditedAt || null,
+    reviewState: "reviewed",
+  });
 }
 
 const competitiveSignals = (calendar.records || []).filter((row) => (row.competitionType || row.setAside) && sourceUrls(row).length).map((row) => ({

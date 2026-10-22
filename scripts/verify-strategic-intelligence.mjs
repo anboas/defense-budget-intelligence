@@ -42,7 +42,15 @@ for (const row of legislation.relations || []) {
 
 assert.ok((strategic.forecasts || []).length >= 10, "Acquisition forecast coverage regressed");
 assert.ok((strategic.missionAssignments || []).length >= 90, "Reviewed mission coverage regressed");
-assert.ok((strategic.tenantAssignments || []).length >= 150, "Reviewed installation-tenant coverage regressed");
+assert.equal(strategic.tenantAssignments?.length, strategic.missionAssignments?.length, "Every reviewed location must promote exactly one canonical organization assignment");
+assert.equal(new Set((strategic.tenantAssignments || []).map((row) => row.id)).size, strategic.tenantAssignments?.length, "Canonical organization-assignment IDs must be unique");
+assert.deepEqual(new Set((strategic.tenantAssignments || []).map((row) => row.locationId)), new Set((strategic.missionAssignments || []).map((row) => row.locationId)), "Canonical organization assignments must cover the reviewed mission locations exactly");
+for (const row of strategic.tenantAssignments || []) {
+  assert.equal(row.identityBasis, "reviewed-location-identity", `Organization assignment ${row.id} must disclose its identity basis`);
+  assert.ok(row.organizationName && !/^(?:about\b|audited primary reference$|.*(?:solicitation|ordering guide|contract announcement|order of precedence|audit-services|appropriations-law training))/i.test(row.organizationName), `Organization assignment ${row.id} promoted a source-page title instead of an entity: ${row.organizationName}`);
+  assert.ok(row.sourceUrls?.length >= 1 && row.sourceUrl === row.sourceUrls[0], `Organization assignment ${row.id} must retain one ordered official-source set`);
+  assert.equal(new Set(row.sourceUrls).size, row.sourceUrls.length, `Organization assignment ${row.id} must deduplicate official-source evidence`);
+}
 assert.ok((strategic.expirationSignals || []).length >= 100, "Expiration signal coverage regressed");
 assert.ok((strategic.executionRiskSignals || []).length >= 50, "Execution review-signal coverage regressed");
 assert.ok((strategic.outcomeEvidence || []).length >= 100, "Outcome evidence coverage regressed");
