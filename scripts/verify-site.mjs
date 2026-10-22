@@ -1392,7 +1392,8 @@ try {
   await page.waitForSelector('[data-organization-relationships="ready"]');
   assert.equal(await page.locator("[data-relationship-lanes]").count(), 1, "Data Library should summarize relationship lanes before rendering every retained item");
   await page.locator("[data-relationship-lanes] > summary").click();
-  assert.match(await page.locator("[data-data-library-page]").innerText(), /Customers & offices[\s\S]*Officials & roles[\s\S]*Programs, awards & accounts[\s\S]*Companies & suppliers/i, "Data Library should connect customer hierarchy, people, work, and companies");
+  assert.match(await page.locator("[data-data-library-page]").innerText(), /Organizations & offices[\s\S]*Officials & roles[\s\S]*Programs, awards & accounts[\s\S]*Companies & suppliers/i, "Data Library should connect organization identity, people, work, and companies");
+  assert.equal(await page.locator('[data-library-organization]').evaluateAll((nodes) => nodes.some((node) => /^(?:about\b|audited primary reference$)/i.test(node.getAttribute("data-library-organization") || ""))), false, "Data Library must not promote source-page headings as organizations");
   assert.match(decodeURIComponent(await page.getByRole("link", { name: /Open in Graph Explorer/i }).getAttribute("href")).replaceAll("+", " "), /intelligence-graph\?graphType=organization[\s\S]*graphLabel=/i, "Reviewed organization dossiers should hand off to the universal Graph Explorer");
   assert.equal(await resourceCount(page, "organization-intelligence.json"), 1, "Data Library should load its bounded organization index once");
   await page.screenshot({ path: `${OUT_DIR}/data-library-relationships-desktop.png`, fullPage: true });
