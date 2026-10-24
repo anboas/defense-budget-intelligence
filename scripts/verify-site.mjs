@@ -42,6 +42,7 @@ const linkedIntelligenceGraphStyleBytes = styleAssets.find((asset) => /^LinkedIn
 const organizationStructureControlsStyleBytes = styleAssets.find((asset) => /^OrganizationStructureControls-.*\.css$/.test(asset.name))?.bytes || 0;
 const organizationWorkDistributionStyleBytes = styleAssets.find((asset) => /^OrganizationWorkDistribution-.*\.css$/.test(asset.name))?.bytes || 0;
 const routeControlConsistencyStyleBytes = styleAssets.find((asset) => /^RouteControlConsistency-.*\.css$/.test(asset.name))?.bytes || 0;
+const taskingWorkspaceStyleBytes = styleAssets.find((asset) => /^TaskingWorkspace-.*\.css$/.test(asset.name))?.bytes || 0;
 assert.doesNotMatch(compiledScripts, /Response Library|Capture Playbooks|Response Assets/i, "Compiled application must not import response-development capabilities from reference sites");
 assert.ok(shellStyleBytes <= 350_000, `Initial application CSS must stay below 350 KB, got ${shellStyleBytes.toLocaleString()} bytes`);
 assert.ok(mapStyleBytes > 0 && mapStyleBytes <= 19_000, `Lazy Opportunity Map CSS must stay within its 19 KB route budget, got ${mapStyleBytes.toLocaleString()} bytes`);
@@ -60,7 +61,8 @@ assert.ok(linkedIntelligenceGraphStyleBytes > 0 && linkedIntelligenceGraphStyleB
 assert.ok(organizationStructureControlsStyleBytes > 0 && organizationStructureControlsStyleBytes <= 1_500, `Nested organization-structure controls CSS must stay within its 1.5 KB budget, got ${organizationStructureControlsStyleBytes.toLocaleString()} bytes`);
 assert.ok(organizationWorkDistributionStyleBytes > 0 && organizationWorkDistributionStyleBytes <= 5_500, `Nested organization-work distribution CSS must stay within its 5.5 KB budget, got ${organizationWorkDistributionStyleBytes.toLocaleString()} bytes`);
 assert.ok(routeControlConsistencyStyleBytes > 0 && routeControlConsistencyStyleBytes <= 4_200, `Deferred route-control consistency CSS must stay within its 4.2 KB shared budget, got ${routeControlConsistencyStyleBytes.toLocaleString()} bytes`);
-assert.ok(compiledStyleBytes <= 470_000, `Total scoped CSS must stay below 470 KB, got ${compiledStyleBytes.toLocaleString()} bytes`);
+assert.ok(taskingWorkspaceStyleBytes > 0 && taskingWorkspaceStyleBytes <= 18_000, `Lazy Tasking workspace CSS must stay within its 18 KB route budget, got ${taskingWorkspaceStyleBytes.toLocaleString()} bytes`);
+assert.ok(compiledStyleBytes <= 488_000, `Total scoped CSS must stay below 488 KB, got ${compiledStyleBytes.toLocaleString()} bytes`);
 assert.equal(strategySpendIndex.metadata?.schemaVersion, "strategy-spend.v1", "Strategic spend browser artifact must retain its independent schema contract");
 assert.equal(builtAssets.some((name) => name.includes("adamboas-hero")), false, "Application builds must not ship the Control Surface example hero asset");
 assert.equal(builtAssets.filter((name) => /^BudgetRequestRoutes-.*\.js$/.test(name)).length, 1, "PDB Request, Request History, and Account Flow should ship behind one lazy route boundary");
@@ -196,8 +198,8 @@ async function assertNavigationContext(page, workspace, view) {
 }
 
 async function assertFlowShell(page) {
-  assert.equal(await page.locator(".ci-header-nav > a[data-primary-workspace]").count(), 4, "Header should expose four bounded user-job workspaces");
-  assert.deepEqual(await page.locator(".ci-header-nav > a[data-primary-workspace]").allTextContents(), ["Today", "Opportunities", "Funding", "Intelligence"], "Primary navigation should keep Timeline inside Opportunities");
+  assert.equal(await page.locator(".ci-header-nav > a[data-primary-workspace]").count(), 5, "Header should expose five bounded user-job workspaces");
+  assert.deepEqual(await page.locator(".ci-header-nav > a[data-primary-workspace]").allTextContents(), ["Today", "Tasking", "Opportunities", "Funding", "Intelligence"], "Primary navigation should expose Tasking without splitting owned opportunity views");
   assert.equal(await page.getByRole("button", { name: "Find intelligence" }).count(), 1, "The header should expose one global entity finder");
   await page.keyboard.press(process.platform === "darwin" ? "Meta+K" : "Control+K");
   await page.waitForSelector("[data-universal-find-dialog]");
@@ -218,7 +220,7 @@ async function assertFlowShell(page) {
     await page.locator("[data-manage-menu-button]").click();
   } else {
     await page.locator("[data-mobile-more-menu-button]").click();
-    assert.match(await page.locator("[data-mobile-more-menu]").textContent(), /Workspaces[\s\S]*Today[\s\S]*Opportunities[\s\S]*Funding[\s\S]*Intelligence[\s\S]*Manage · Operations[\s\S]*Manage · Workspace/, "Mobile navigation should retain the same workspace ownership and management boundary");
+    assert.match(await page.locator("[data-mobile-more-menu]").textContent(), /Workspaces[\s\S]*Today[\s\S]*Tasking[\s\S]*Opportunities[\s\S]*Funding[\s\S]*Intelligence[\s\S]*Manage · Operations[\s\S]*Manage · Workspace/, "Mobile navigation should retain the same workspace ownership and management boundary");
     await page.locator("[data-mobile-more-menu-button]").click();
   }
   assert.equal(await page.locator("[data-peer-intelligence-nav]").count(), 0, "Analytics app should not expose peer-product surfaces inside the workspace");
