@@ -44,6 +44,7 @@ import { registerProviderCredentialRoutes } from "./provider-credential-routes.m
 import { registerAcquisitionRuntimeRoutes } from "./acquisition-runtime-routes.mjs";
 import { registerAccountRegistrationRoute, registrationPublicStatus } from "./account-registration-routes.mjs";
 import { registerSessionManagementRoutes } from "./session-management-routes.mjs";
+import { registerTaskingRoutes } from "./tasking-routes.mjs";
 import { postgresEntitlementDecision, registerSaasControlPlaneRoutes } from "./saas-control-plane-routes.mjs";
 import { postgresApiRequestLog } from "./api-observability.mjs";
 import { ROLE_LABELS, WORKSPACE_ROLE_IDS, accessCapabilities } from "../src/access-model.js";
@@ -589,6 +590,7 @@ export async function registerAuthRoutes(app, pool) {
   registerAcquisitionRuntimeRoutes(app, pool, { assertSameOrigin, authenticated, canAdministerWorkspace, cleanText, decryptSecret: decryptOpenAiKey, encryptSecret: encryptOpenAiKey });
   registerAccountRegistrationRoute(app, pool, { account, assertSameOrigin, authenticated, canAdministerUsers, cleanText, enabled, hydratedUser, issueSession, recordUserActivity, sha256, validEmail, validProof });
   registerSessionManagementRoutes(app, pool, { assertSameOrigin, authenticated, recordUserActivity });
+  registerTaskingRoutes(app, pool, { assertSameOrigin, authenticated, recordUserActivity });
   registerSaasControlPlaneRoutes(app, pool, { assertSameOrigin, authenticated, recordUserActivity });
   app.get("/api/v1/auth/status", async (request) => {
     if (!enabled) return { enabled: false, required: false, claimed: false, user: null };

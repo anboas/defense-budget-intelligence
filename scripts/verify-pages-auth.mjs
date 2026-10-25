@@ -204,6 +204,23 @@ async function verifyApiLifecycle(persistPath) {
     const ownerId = body.user.id;
     const defaultWorkspaceId = body.user.activeWorkspace.id;
 
+    response = await apiRequest(baseUrl, "/api/v1/auth/tasking", { cookie: ownerCookie });
+    assert.equal(response.status, 200, "D1 Tasking reads must require and use the active workspace");
+    assert.deepEqual((await response.json()).tasks, [], "A new workspace must begin without persisted task overrides");
+    response = await apiRequest(baseUrl, "/api/v1/auth/tasking/task-solution-owner", { method: "PATCH", cookie: ownerCookie, origin: "https://attacker.example", body: { version: 0, status: "completed" } });
+    assert.equal(response.status, 403, "D1 Tasking mutations must reject cross-origin writes");
+    response = await apiRequest(baseUrl, "/api/v1/auth/tasking/task-solution-owner", { method: "PATCH", cookie: ownerCookie, origin: baseUrl.slice(0, -1), body: { version: 0, status: "completed", owner: "D1 verification owner", acceptance: "Persisted workspace result" } });
+    assert.equal(response.status, 200, "D1 Tasking must persist a workspace-scoped task override");
+    body = await response.json();
+    assert.equal(body.task.version, 1);
+    assert.equal(body.task.owner, "D1 verification owner");
+    response = await apiRequest(baseUrl, "/api/v1/auth/tasking/task-solution-owner", { method: "PATCH", cookie: ownerCookie, origin: baseUrl.slice(0, -1), body: { version: 0, status: "ready" } });
+    assert.equal(response.status, 409, "D1 Tasking must reject stale task versions");
+    response = await apiRequest(baseUrl, "/api/v1/auth/tasking", { cookie: ownerCookie });
+    assert.equal((await response.json()).tasks[0].status, "completed", "D1 Tasking reads must return the persisted workspace override");
+    response = await apiRequest(baseUrl, "/api/v1/auth/tasking/task-solution-owner?version=1", { method: "DELETE", cookie: ownerCookie, origin: baseUrl.slice(0, -1) });
+    assert.equal(response.status, 204, "D1 Tasking reset must remove the persisted override at the expected version");
+
     response = await apiRequest(baseUrl, "/api/v1/auth/control-plane", { cookie: ownerCookie });
     assert.equal(response.status, 200, "D1 Super users must be able to inspect the SaaS control plane");
     body = await response.json();

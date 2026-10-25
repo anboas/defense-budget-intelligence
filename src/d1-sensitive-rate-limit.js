@@ -46,6 +46,7 @@ function mutationPolicy(pathname, method) {
   if (pathname.startsWith("/api/v1/auth/provider-credentials/") || pathname.startsWith("/api/v1/auth/openai-keys")) return { scope: "credentials", limit: 40 };
   if (pathname.startsWith("/api/v1/auth/users") || pathname.startsWith("/api/v1/auth/workspace-admin") || pathname.startsWith("/api/v1/auth/control-plane")) return { scope: "administration", limit: 60 };
   if (pathname.startsWith("/api/v1/auth/acquisition/")) return { scope: "acquisition", limit: 120 };
+  if (pathname.startsWith("/api/v1/auth/tasking/")) return { scope: "tasking", limit: 120 };
   if (pathname.startsWith("/api/v1/auth/research-operations/")) return { scope: "research_operations", limit: 60 };
   return null;
 }

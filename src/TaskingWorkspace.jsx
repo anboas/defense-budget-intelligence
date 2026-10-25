@@ -1,13 +1,15 @@
 import { useMemo, useState } from "react";
 import {
   AlertTriangle, ArrowRight, CheckCircle2, ChevronDown, ChevronRight, CircleDot,
-  File, FileText, Folder, FolderOpen, GitBranch, Link2, ListFilter, Search, Sparkles,
+  File, FileText, Folder, FolderOpen, GitBranch, Link2, ListFilter, RotateCcw, Save, Search, Sparkles,
 } from "lucide-react";
 import { ControlPageBody, ControlStatusBadge } from "control-surface-ui/react";
 import ControlSelect from "./ControlSelect.jsx";
 import SemanticStatusBadge from "./SemanticStatusBadge.jsx";
 import ControlWorkbenchHeader from "./WorkbenchHeader.jsx";
 import { flattenTaskingFolders, TASKING_FOUNDATION } from "./tasking-foundation-data.js";
+import { TASKING_TASK_STATUSES } from "./tasking-model.js";
+import { useTaskingTasks } from "./use-tasking-tasks.js";
 import "./TaskingWorkspace.css";
 
 const VIEW_IDS = new Set(["portfolio", "files", "connections"]);
@@ -155,7 +157,20 @@ function ConnectionsView({ records, relationships, selectedId, onSelect }) {
   </section>;
 }
 
-function ContextPanel({ record, anchor, folder, relatedRecords, relationshipRows, onSelect }) {
+function TaskEditor({ task, canWrite, saving, notice, onSave, onReset }) {
+  const [draft, setDraft] = useState(() => ({ status: task.status, owner: task.owner, acceptance: task.acceptance }));
+  return <form className="tasking-task-editor" data-tasking-task-editor onSubmit={(event) => { event.preventDefault(); void onSave(task.id, draft).catch(() => {}); }}>
+    <header><h4>Task state <span>{task.persisted ? `Version ${task.version}` : "Foundation value"}</span></h4>{task.persisted ? <ControlStatusBadge status="verified" label="Persisted" /> : null}</header>
+    <label><span>Status</span><span data-tasking-status-control><ControlSelect compact ariaLabel="Task status" value={draft.status} options={TASKING_TASK_STATUSES.map((value) => [value, value.replaceAll("-", " ").replace(/\b\w/g, (letter) => letter.toUpperCase())])} onChange={(value) => setDraft((current) => ({ ...current, status: value }))} disabled={!canWrite || saving} /></span></label>
+    <label><span>Owner</span><input className="if-input" data-tasking-owner-input value={draft.owner} maxLength={100} disabled={!canWrite || saving} onChange={(event) => setDraft((current) => ({ ...current, owner: event.target.value }))} /></label>
+    <label><span>Acceptance</span><textarea className="if-input" value={draft.acceptance} maxLength={500} rows={3} disabled={!canWrite || saving} onChange={(event) => setDraft((current) => ({ ...current, acceptance: event.target.value }))} /></label>
+    <div className="tasking-task-editor__actions"><button className="if-btn if-btn--primary if-btn--sm" type="submit" disabled={!canWrite || saving || !draft.owner.trim() || !draft.acceptance.trim()}><Save size={14} />{saving ? "Saving…" : "Save task"}</button>{task.persisted ? <button className="if-btn if-btn--ghost if-btn--sm" type="button" disabled={!canWrite || saving} onClick={() => void onReset(task.id).catch(() => {})}><RotateCcw size={14} />Reset</button> : null}</div>
+    {notice ? <p className="if-field__hint" role="status">{notice}</p> : null}
+    {!canWrite ? <p className="if-field__hint">Workspace write access is required to change task state.</p> : null}
+  </form>;
+}
+
+function ContextPanel({ record, anchor, folder, relatedRecords, relationshipRows, onSelect, taskState }) {
   if (!record) return <aside className="tasking-context"><p>No record selected.</p></aside>;
   const task = record.kind === "Task" ? record : null;
   return <aside className="tasking-context" aria-labelledby="tasking-context-title">
@@ -168,19 +183,22 @@ function ContextPanel({ record, anchor, folder, relatedRecords, relationshipRows
       <div><dt>Acceptance</dt><dd>{task?.acceptance || "Record-specific review"}</dd></div>
     </dl>
     {anchor ? <section className="tasking-context__next"><span>Next accepted move</span><strong>{anchor.nextMove}</strong><small>{anchor.dueLabel}</small></section> : null}
+    {task ? <TaskEditor key={`${task.id}:${task.version}`} task={task} canWrite={taskState.canWrite} saving={taskState.savingTaskId === task.id} notice={taskState.notice} onSave={taskState.saveTask} onReset={taskState.resetTask} /> : null}
     <section className="tasking-context__links"><header><h4>Connected context</h4><span>{relatedRecords.length}</span></header>{relatedRecords.map((related) => <button key={related.id} type="button" onClick={() => onSelect(related.id)}><span><strong>{related.title || related.name}</strong><small>{related.kind}</small></span><ArrowRight size={14} /></button>)}</section>
     {relationshipRows.length ? <section className="tasking-context__basis"><h4>Relationship basis</h4>{relationshipRows.map((relationship) => <p key={relationship.id}><span className={relationship.status === "suggested" ? "is-suggested" : ""}>{relationship.status}</span>{relationship.type} · {relationship.basis}</p>)}</section> : null}
-    <footer><CircleDot size={14} /><span><strong>Synthetic foundation</strong>No live source connected. Demo state cannot be mistaken for business fact.</span></footer>
+    <footer><CircleDot size={14} /><span><strong>{task?.persisted ? taskState.persistenceLabel : "Synthetic foundation"}</strong>{task?.persisted ? "This task override is scoped to the active workspace. Source evidence remains synthetic until a connector is enabled." : "No live source connected. Demo state cannot be mistaken for business fact."}</span></footer>
   </aside>;
 }
 
 export default function TaskingWorkspace({ routeHash = "" }) {
   const routed = routeState(routeHash);
+  const taskState = useTaskingTasks();
+  const tasks = taskState.tasks;
   const [query, setQuery] = useState(routed.query);
   const [workstreamId, setWorkstreamId] = useState(routed.workstreamId);
   const [status, setStatus] = useState(routed.status);
   const flatFolders = useMemo(() => flattenTaskingFolders(), []);
-  const records = useMemo(() => [...TASKING_FOUNDATION.anchors, ...TASKING_FOUNDATION.tasks, ...TASKING_FOUNDATION.contextRecords, ...flatFolders.map((entry) => ({ ...entry, title: entry.name, kind: entry.kind === "folder" ? "Folder" : "File" }))], [flatFolders]);
+  const records = useMemo(() => [...TASKING_FOUNDATION.anchors, ...tasks, ...TASKING_FOUNDATION.contextRecords, ...flatFolders.map((entry) => ({ ...entry, title: entry.name, kind: entry.kind === "folder" ? "Folder" : "File" }))], [flatFolders, tasks]);
   const selected = records.find((record) => record.id === routed.recordId) || TASKING_FOUNDATION.anchors[0];
   const selectedAnchor = selected.kind === "Task" ? TASKING_FOUNDATION.anchors.find((anchor) => anchor.id === selected.anchorId) : TASKING_FOUNDATION.anchors.find((anchor) => anchor.id === selected.id || anchor.folderId === selected.id);
   const selectedFolder = selected.kind === "Folder" || selected.kind === "File" ? selected : flatFolders.find((entry) => entry.id === selectedAnchor?.folderId);
@@ -195,7 +213,7 @@ export default function TaskingWorkspace({ routeHash = "" }) {
   const relatedRecords = records.filter((record) => relatedIds.has(record.id)).slice(0, 6);
   const normalizedQuery = query.trim().toLowerCase();
   const filteredAnchors = TASKING_FOUNDATION.anchors.filter((anchor) => {
-    const anchorTasks = TASKING_FOUNDATION.tasks.filter((task) => task.anchorId === anchor.id);
+    const anchorTasks = tasks.filter((task) => task.anchorId === anchor.id);
     const matchesQuery = !normalizedQuery || [anchor.title, anchor.outcome, anchor.nextMove, ...anchorTasks.flatMap((task) => [task.title, task.description])].some((value) => String(value).toLowerCase().includes(normalizedQuery));
     const matchesWorkstream = workstreamId === "all" || anchor.workstreamId === workstreamId;
     const matchesStatus = status === "all" || anchor.status === status || anchorTasks.some((task) => task.status === status);
@@ -203,9 +221,9 @@ export default function TaskingWorkspace({ routeHash = "" }) {
   });
   const visibleAnchorIds = new Set(filteredAnchors.map((anchor) => anchor.id));
   const filteredWorkstreams = TASKING_FOUNDATION.workstreams.filter((workstream) => workstream.anchors.some((anchorId) => visibleAnchorIds.has(anchorId)));
-  const filteredTasks = TASKING_FOUNDATION.tasks.filter((task) => visibleAnchorIds.has(task.anchorId));
-  const waiting = TASKING_FOUNDATION.tasks.filter((task) => task.status === "waiting").length;
-  const review = TASKING_FOUNDATION.tasks.filter((task) => task.status === "review").length;
+  const filteredTasks = tasks.filter((task) => visibleAnchorIds.has(task.anchorId));
+  const waiting = tasks.filter((task) => task.status === "waiting").length;
+  const review = tasks.filter((task) => task.status === "review").length;
 
   function selectRecord(recordOrId, preferredView = routed.view) {
     const record = typeof recordOrId === "string" ? records.find((item) => item.id === recordOrId) : recordOrId;
@@ -218,11 +236,11 @@ export default function TaskingWorkspace({ routeHash = "" }) {
     updateTaskingRoute({ [key]: value, taskingRecord: routed.recordId });
   }
 
-  const headerMeta = <span className="tasking-foundation-state"><Sparkles size={14} /><strong>{TASKING_FOUNDATION.metadata.label}</strong><span>{TASKING_FOUNDATION.metadata.coverage}</span></span>;
+  const headerMeta = <span className="tasking-foundation-state"><Sparkles size={14} /><strong>{taskState.persistenceLabel}</strong><span>Task changes persist; file evidence remains illustrative.</span></span>;
   return <section className="tasking-workspace" data-tasking-workspace data-tasking-view={routed.view}>
     <ControlWorkbenchHeader eyebrow="Workspace work" title="Tasking" summary="See where work lives, how it clusters into workstreams, what is connected, and what needs movement next." meta={headerMeta} metrics={[
       { id: "workstreams", label: "Workstreams", value: TASKING_FOUNDATION.workstreams.length, meta: "One primary placement per task" },
-      { id: "active", label: "Open work", value: TASKING_FOUNDATION.tasks.filter((task) => OPEN_STATUSES.has(task.status)).length, meta: "Across real anchor types", tone: "info" },
+      { id: "active", label: "Open work", value: tasks.filter((task) => OPEN_STATUSES.has(task.status)).length, meta: "Across real anchor types", tone: "info" },
       { id: "waiting", label: "Waiting", value: waiting, meta: "Named dependencies", tone: waiting ? "warning" : "success" },
       { id: "review", label: "In review", value: review, meta: "Human acceptance remains explicit", tone: review ? "warning" : "success" },
       { id: "relationships", label: "Relationships", value: TASKING_FOUNDATION.relationships.length, meta: `${TASKING_FOUNDATION.relationships.filter((item) => item.status === "suggested").length} suggested` },
@@ -231,7 +249,7 @@ export default function TaskingWorkspace({ routeHash = "" }) {
       <section className="tasking-scope" aria-label="Tasking scope controls">
         <label className="tasking-search"><Search size={15} aria-hidden="true" /><span className="sr-only">Search Tasking</span><input value={query} onChange={(event) => setQuery(event.target.value)} onBlur={() => updateTaskingRoute({ taskingQuery: query })} onKeyDown={(event) => { if (event.key === "Enter") updateTaskingRoute({ taskingQuery: query }); }} placeholder="Search anchors, tasks, outcomes, and context…" /></label>
         <ControlSelect compact ariaLabel="Workstream" value={workstreamId} options={[["all", "All workstreams"], ...TASKING_FOUNDATION.workstreams.map((item) => [item.id, item.name])]} onChange={(value) => commitFilter("taskingWorkstream", value, setWorkstreamId)} />
-        <ControlSelect compact ariaLabel="Status" value={status} options={[["all", "All states"], ["ready", "Ready"], ["in-progress", "In progress"], ["waiting", "Waiting"], ["review", "In review"]]} onChange={(value) => commitFilter("taskingStatus", value, setStatus)} />
+        <ControlSelect compact ariaLabel="Status" value={status} options={[["all", "All states"], ["ready", "Ready"], ["in-progress", "In progress"], ["waiting", "Waiting"], ["review", "In review"], ["blocked", "Blocked"], ["completed", "Complete"]]} onChange={(value) => commitFilter("taskingStatus", value, setStatus)} />
         <span className="tasking-scope__result"><ListFilter size={14} />{filteredAnchors.length} anchors · {filteredTasks.length} tasks</span>
       </section>
       <div className="tasking-schema-rule"><strong>Projection:</strong><span>Workstream</span><ChevronRight size={12} /><span>Pursuit, Account, File, or Goal anchor</span><ChevronRight size={12} /><span>Task</span><small>Connections add context without duplicating work.</small></div>
@@ -243,9 +261,9 @@ export default function TaskingWorkspace({ routeHash = "" }) {
           {routed.view === "connections" ? <ConnectionsView records={records} relationships={TASKING_FOUNDATION.relationships} selectedId={selected.id} onSelect={(id) => selectRecord(id, "connections")} /> : null}
           {!filteredAnchors.length && routed.view === "portfolio" ? <div className="tasking-empty"><AlertTriangle size={20} /><strong>No work matches this scope</strong><span>Clear search or filters to restore the portfolio.</span></div> : null}
         </main>
-        <ContextPanel record={selected} anchor={selectedAnchor} folder={selectedFolder} relatedRecords={relatedRecords} relationshipRows={selectedRelationships} onSelect={selectRecord} />
+        <ContextPanel record={selected} anchor={selectedAnchor} folder={selectedFolder} relatedRecords={relatedRecords} relationshipRows={selectedRelationships} onSelect={selectRecord} taskState={taskState} />
       </div>
-      <footer className="tasking-boundary"><CheckCircle2 size={15} /><span><strong>Foundation boundary</strong> This release proves one folder hierarchy, one workstream projection, one selected record, and typed relationship context. Persistence, source indexing, and task mutation remain behind the next gated slice.</span><a href={recordHref(selected.id, "connections")}>Inspect connections <ArrowRight size={13} /></a></footer>
+      <footer className="tasking-boundary"><CheckCircle2 size={15} /><span><strong>Persistence boundary</strong> Task state now persists per workspace with explicit versions and human mutation. Live source indexing remains behind the connector gate.</span><a href={recordHref(selected.id, "connections")}>Inspect connections <ArrowRight size={13} /></a></footer>
     </ControlPageBody>
   </section>;
 }

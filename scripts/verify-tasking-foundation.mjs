@@ -45,6 +45,18 @@ async function verifyViewport(name, viewport, { screenshot = false } = {}) {
     await page.locator(".tasking-file-table").waitFor();
     assert.match(page.url(), /taskingRecord=task-solution-owner/, "desktop: selection should persist into the file view");
     await page.screenshot({ path: path.resolve("test-results/tasking-foundation-desktop-files.png"), fullPage: true });
+
+    await page.goto(`${baseUrl}#/tasking?taskingView=portfolio&taskingRecord=task-solution-owner`, { waitUntil: "domcontentloaded" });
+    await page.locator("[data-tasking-task-editor]").waitFor();
+    await page.locator("[data-tasking-owner-input]").fill("Persistent verification owner");
+    await page.locator("[data-tasking-task-editor] button[type=submit]").click();
+    await page.getByText("Task update saved to this workspace.").waitFor();
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await page.locator("[data-tasking-task-editor]").waitFor();
+    assert.equal(await page.locator("[data-tasking-owner-input]").inputValue(), "Persistent verification owner", "desktop: task mutation should persist across reload");
+    await page.locator("[data-tasking-task-editor] button").filter({ hasText: "Reset" }).click();
+    await page.getByText("Task reset to the foundation state.").waitFor();
+    assert.equal(await page.locator("[data-tasking-owner-input]").inputValue(), "Example owner", "desktop: reset should restore the foundation value");
   }
 
   if (screenshot) {

@@ -117,6 +117,7 @@ const accountabilityFindingsCssBytes = cssAssets.find(({ asset }) => /^Accountab
 const researchDiscoveryCssBytes = cssAssets.find(({ asset }) => /^ResearchDiscoveryDashboard-.*\.css$/.test(asset))?.bytes || 0;
 const opportunityPortfolioCssBytes = cssAssets.find(({ asset }) => /^OpportunityPortfolioVisuals-.*\.css$/.test(asset))?.bytes || 0;
 const routeControlConsistencyCssBytes = cssAssets.find(({ asset }) => /^RouteControlConsistency-.*\.css$/.test(asset))?.bytes || 0;
+const taskingWorkspaceCssBytes = cssAssets.find(({ asset }) => /^TaskingWorkspace-.*\.css$/.test(asset))?.bytes || 0;
 assert.ok(shellCssBytes <= 350_000, `Initial production CSS exceeds the 350KB ceiling (${shellCssBytes} bytes)`);
 assert.ok(mapCssBytes > 0 && mapCssBytes <= 19_000, `Lazy Opportunity Map CSS exceeds its 19KB route ceiling (${mapCssBytes} bytes)`);
 assert.ok(connectedEvidenceCssBytes > 0 && connectedEvidenceCssBytes <= 4_000, `Deferred connected-evidence CSS exceeds its 4KB component ceiling (${connectedEvidenceCssBytes} bytes)`);
@@ -126,7 +127,8 @@ assert.ok(accountabilityFindingsCssBytes > 0 && accountabilityFindingsCssBytes <
 assert.ok(researchDiscoveryCssBytes > 0 && researchDiscoveryCssBytes <= 10_000, `Deferred discovery-operations CSS exceeds its 10KB component ceiling (${researchDiscoveryCssBytes} bytes)`);
 assert.ok(opportunityPortfolioCssBytes > 0 && opportunityPortfolioCssBytes <= 13_200, `Deferred Strategic Analysis Studio CSS exceeds its 13.2KB route ceiling (${opportunityPortfolioCssBytes} bytes)`);
 assert.ok(routeControlConsistencyCssBytes > 0 && routeControlConsistencyCssBytes <= 4_200, `Deferred route-control consistency CSS exceeds its 4.2KB shared ceiling (${routeControlConsistencyCssBytes} bytes)`);
-assert.ok(cssBytes <= 470_000, `Total production CSS exceeds the 470KB ceiling (${cssBytes} bytes)`);
+assert.ok(taskingWorkspaceCssBytes > 0 && taskingWorkspaceCssBytes <= 18_000, `Lazy Tasking workspace CSS exceeds its 18KB route ceiling (${taskingWorkspaceCssBytes} bytes)`);
+assert.ok(cssBytes <= 488_000, `Total production CSS exceeds the 488KB ceiling (${cssBytes} bytes)`);
 assert.ok((await stat(resolve(root, "dist/data/contract-monitor.json"))).size > 500_000, "Deferred contract monitor payload must be emitted as runtime data");
 const intelligenceGraphBytes = (await stat(resolve(root, "dist/data/intelligence-graph.json"))).size;
 const intelligenceGraphCompressedBytes = (await stat(resolve(root, "dist/data/intelligence-graph.json.gzip"))).size;

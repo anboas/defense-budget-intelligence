@@ -63,6 +63,7 @@ import {
 import { teamsResponse as handleTeamsResponse } from "./d1-team-store.js";
 import { emulationResponse as handleEmulationResponse } from "./d1-emulation.js";
 import { D1_USER_ACTIVITY_SCHEMA, recordUserActivityD1, userActivityResponse as handleUserActivityResponse } from "./d1-user-activity.js";
+import { D1_TASKING_SCHEMA, taskingResponse as handleTaskingResponse } from "./d1-tasking.js";
 import { directoryResponse as handleDirectoryResponse } from "./d1-workspace-directory.js";
 import { recordDispositionsResponse as handleRecordDispositionsResponse } from "./d1-record-dispositions.js";
 import { D1_RECORD_GROUP_SCHEMA, recordGroupsResponse as handleRecordGroupsResponse } from "./d1-record-groups.js";
@@ -582,6 +583,7 @@ const SCHEMA = Object.freeze([
   "CREATE INDEX IF NOT EXISTS idx_dbi_record_dispositions_workspace ON dbi_workspace_record_dispositions (workspace_id, disposition, updated_at DESC)",
   ...D1_RECORD_GROUP_SCHEMA,
   ...D1_RECORD_INTELLIGENCE_SCHEMA,
+  ...D1_TASKING_SCHEMA,
   `CREATE TABLE IF NOT EXISTS dbi_workspace_events (
     id TEXT PRIMARY KEY,
     workspace_id TEXT NOT NULL,
@@ -3272,6 +3274,7 @@ export async function pagesAuthApiResponse(request, env = {}, context = null) {
   if (pathname === "/api/v1/auth/activity") return handleUserActivityResponse(request, db, { json, safeJson, sessionUser });
   if (pathname === "/api/v1/auth/directory") return handleDirectoryResponse(request, db, { sessionUser, json, roleLabels: ROLE_LABELS });
   if (pathname === "/api/v1/auth/teams" || pathname.startsWith("/api/v1/auth/teams/")) return handleTeamsResponse(request, db, { sessionUser, canAdministerWorkspaces, recordActivity, json, safeJson });
+  if (pathname === "/api/v1/auth/tasking" || pathname.startsWith("/api/v1/auth/tasking/")) return handleTaskingResponse(request, db, { sessionUser, recordActivity, json, safeJson });
   if (pathname === "/api/v1/auth/workspaces" || pathname.startsWith("/api/v1/auth/workspaces/")) return workspacesResponse(request, db);
   if (pathname === "/api/v1/auth/workspace-admin" || pathname.startsWith("/api/v1/auth/workspace-admin/")) return workspaceAdminResponse(request, db);
   if (pathname === "/api/v1/auth/control-plane" || pathname.startsWith("/api/v1/auth/control-plane/")) return d1SaasControlPlaneResponse(request, db, { json, recordActivity, safeJson, sessionUser });

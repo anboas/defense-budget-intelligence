@@ -478,10 +478,42 @@
 
 .tasking-context__summary,
 .tasking-context__next,
+.tasking-task-editor,
 .tasking-context__links,
 .tasking-context__basis {
   padding: 11px;
   border-bottom: 1px solid var(--if-border);
+}
+
+.tasking-task-editor {
+  display: grid;
+  gap: 9px;
+}
+
+.tasking-task-editor > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.tasking-task-editor > header h4 {
+  margin: 0;
+}
+
+.tasking-task-editor > header span,
+.tasking-task-editor > label > span:first-child {
+  color: var(--if-fg-muted);
+  font-size: 10px;
+}
+
+.tasking-task-editor > label {
+  display: grid;
+  gap: 4px;
+}
+
+.tasking-task-editor__actions {
+  display: flex;
+  gap: 6px;
 }
 
 .tasking-context h4 {
