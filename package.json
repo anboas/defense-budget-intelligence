@@ -110,5 +110,9 @@
     "typescript": "^5.9.2",
     "vite": "^8.3.4",
     "wrangler": "^4.132.0"
+  },
+  "overrides": {
+    "postcss-selector-parser": "7.1.6",
+    "undici": "7.30.1"
   }
 }

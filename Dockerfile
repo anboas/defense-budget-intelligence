@@ -18,7 +18,7 @@ RUN apt-get update \
     && apt-get install --only-upgrade --yes --no-install-recommends \
       libpcre2-8-0=10.42-1+deb12u2 \
       perl-base=5.36.0-7+deb12u4 \
-      tzdata=2026c-0+deb12u1 \
+      tzdata=2026e-0+deb12u1 \
     && rm -rf /var/lib/apt/lists/* \
     && npm ci --omit=dev --ignore-scripts \
     && npm cache clean --force \
