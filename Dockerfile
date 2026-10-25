@@ -18,7 +18,7 @@ RUN apt-get update \
     && apt-get install --only-upgrade --yes --no-install-recommends \
       libpcre2-8-0=10.42-1+deb12u2 \
       perl-base=5.36.0-7+deb12u4 \
-      tzdata=2026c-0+deb12u1 \
+      tzdata=2026e-0+deb12u1 \
     && rm -rf /var/lib/apt/lists/* \
     && npm ci --omit=dev --ignore-scripts \
     && npm cache clean --force \
@@ -34,6 +34,8 @@ COPY --chown=node:node src/d1-event-store.js ./src/d1-event-store.js
 COPY --chown=node:node src/openai-models.js ./src/openai-models.js
 COPY --chown=node:node src/security-policy.js ./src/security-policy.js
 COPY --chown=node:node src/access-model.js ./src/access-model.js
+COPY --chown=node:node src/tasking-model.js ./src/tasking-model.js
+COPY --chown=node:node src/tasking-foundation-data.js ./src/tasking-foundation-data.js
 COPY --chown=node:node src/acquisition-runtime-core.js ./src/acquisition-runtime-core.js
 COPY --chown=node:node src/opportunity-ai-runtime.js ./src/opportunity-ai-runtime.js
 COPY --chown=node:node src/opportunity-fit.js ./src/opportunity-fit.js

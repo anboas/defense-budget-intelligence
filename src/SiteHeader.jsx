@@ -14,7 +14,7 @@ const MOBILE_TITLES = {
   schedule: "Schedule", overview: "Request", trends: "Changes", lifecycle: "Accounts", awards: "Awards", sources: "Sources",
   watchlist: "Today", actions: "Actions", tasks: "Automation", "event-discovery": "Discovery", connections: "Integrations", "domain-model": "Data Model",
   intelligence: "Intelligence", "workspace-settings": "Workspace", users: "Accounts", workspaces: "Workspaces", directory: "Directory",
-  "entity-workspace": "Entity",
+  "entity-workspace": "Entity", tasking: "Tasking",
 };
 
 function menuItems(menu) {
@@ -96,6 +96,12 @@ export default function SiteHeader({ activeTab, activeTitle, routeHash }) {
   }
 
   function ownedViewHref(view) {
+    if (context.workspace?.id === "tasking" && activeTab === "tasking" && view.tabId === "tasking") {
+      const current = new URLSearchParams(String(routeHash || "").split("?")[1] || "");
+      const target = new URLSearchParams(String(view.href).split("?")[1] || "");
+      current.set("taskingView", target.get("taskingView") || "portfolio");
+      return `#/tasking?${current.toString()}`;
+    }
     if (context.workspace?.id !== "opportunities" || activeTab !== "spend" || view.tabId !== "spend") return view.href;
     const current = new URLSearchParams(String(routeHash || "").split("?")[1] || "");
     const target = new URLSearchParams(String(view.href).split("?")[1] || "");

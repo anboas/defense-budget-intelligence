@@ -46,13 +46,14 @@ assert.deepEqual(summarizeApiActivity(activity), {
   credentialEvents: 1,
 });
 
-const scopes = ["records:read", "tracking:read", "tracking:write", "events:read", "events:write", "activity:read", "activity:write", "integrations:read", "graph:read", "evidence:read", "enrichment:propose", "review:read", "review:write", "graph:admin"];
+const scopes = ["records:read", "tracking:read", "tracking:write", "events:read", "events:write", "activity:read", "activity:write", "integrations:read", "tasking:read", "tasking:write", "graph:read", "evidence:read", "enrichment:propose", "review:read", "review:write", "graph:admin"];
 const profiles = agentAccessProfiles(scopes);
 assert.equal(profiles.length, 4);
 assert.deepEqual(profiles.find(({ id }) => id === "read").scopes, scopes.filter((scope) => scope.endsWith(":read")));
 assert.ok(profiles.find(({ id }) => id === "workflow").scopes.includes("tracking:write"));
 assert.ok(!profiles.find(({ id }) => id === "research").scopes.includes("review:write"));
-assert.deepEqual(groupedAgentScopes(scopes).map(({ id }) => id), ["records", "events", "intelligence", "administration"]);
+assert.ok(profiles.find(({ id }) => id === "workflow").scopes.includes("tasking:write"));
+assert.deepEqual(groupedAgentScopes(scopes).map(({ id }) => id), ["records", "tasking", "events", "intelligence", "administration"]);
 assert.equal(agentScopeSummary(["records:read", "events:write"]), "2 permissions · 1 can change or propose");
 
 const now = new Date("2026-10-22T12:00:00.000Z");

@@ -4,6 +4,7 @@ const ROUTES = {
   workspace: "#/intelligence/workspace", map: "#/budget-spend/map", sources: "#/budget-spend/sources", watchlist: "#/budget-spend/watchlist",
   actions: "#/budget-spend/actions", tasks: "#/budget-spend/tasks", schedule: "#/budget-spend/schedule", discovery: "#/budget-spend/event-discovery", connections: "#/budget-spend/connections",
   model: "#/budget-spend/domain-model", intelligence: "#/budget-spend/intelligence", settings: "#/budget-spend/workspace", users: "#/budget-spend/users", workspaces: "#/budget-spend/workspaces",
+  tasking: "#/tasking",
 };
 
 export const PRODUCT_WORKSPACES = [
@@ -11,6 +12,11 @@ export const PRODUCT_WORKSPACES = [
     { id: "focus", label: "Focus", tabId: "watchlist", href: ROUTES.watchlist },
     { id: "actions", label: "Actions", tabId: "actions", href: ROUTES.actions },
     { id: "schedule", label: "Schedule", tabId: "schedule", href: ROUTES.schedule },
+  ] },
+  { id: "tasking", label: "Tasking", href: ROUTES.tasking, tabIds: ["tasking"], views: [
+    { id: "portfolio", label: "Portfolio", tabId: "tasking", href: `${ROUTES.tasking}?taskingView=portfolio` },
+    { id: "files", label: "Files", tabId: "tasking", href: `${ROUTES.tasking}?taskingView=files` },
+    { id: "connections", label: "Connections", tabId: "tasking", href: `${ROUTES.tasking}?taskingView=connections` },
   ] },
   { id: "opportunities", label: "Opportunities", href: ROUTES.timeline, tabIds: ["timeline", "spend"], views: [
     { id: "timeline", label: "Timeline", tabId: "timeline", href: ROUTES.timeline },
@@ -51,12 +57,15 @@ export const MANAGEMENT_NAVIGATION = [
 export function navigationContext(activeTab, routeHash = "") {
   const rawSpendView = activeTab === "spend" ? new URLSearchParams(String(routeHash).split("?")[1] || "").get("spendView") || "table" : "";
   const spendView = ["radar", "visuals", "charts"].includes(rawSpendView) ? "analysis" : rawSpendView;
+  const taskingView = activeTab === "tasking" ? new URLSearchParams(String(routeHash).split("?")[1] || "").get("taskingView") || "portfolio" : "";
   const workspace = PRODUCT_WORKSPACES.find((entry) => entry.tabIds.includes(activeTab)) || null;
   if (!workspace) return { workspace: null, view: null };
   const view = activeTab === "entity-workspace"
     ? { id: "entity", label: "Entity workspace", tabId: activeTab, href: routeHash || ROUTES.workspace }
     : activeTab === "spend" && spendView === "timeline"
       ? workspace.views.find((entry) => entry.id === "timeline") || null
+    : activeTab === "tasking"
+      ? workspace.views.find((entry) => entry.id === taskingView) || workspace.views[0] || null
     : workspace.views.find((entry) => entry.tabId === activeTab && (!entry.spendViews || entry.spendViews.includes(spendView))) || null;
   return { workspace, view };
 }
