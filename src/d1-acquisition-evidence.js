@@ -195,6 +195,19 @@ export async function advanceAcquisitionEvidenceCampaign(db, env, campaignId, wo
   return { campaign: await updateCampaignCounts(db, campaignId), results };
 }
 
+export async function runScheduledAcquisitionEvidence(db, env, decryptSecret, batchSize = 8) {
+  const campaign = await db.prepare(`SELECT campaign.* FROM dbi_acquisition_evidence_campaigns campaign
+    WHERE campaign.status IN ('queued','running','partial') AND EXISTS (
+      SELECT 1 FROM dbi_acquisition_evidence_targets target
+      WHERE target.campaign_id=campaign.id AND target.status IN ('queued','retry')
+    ) ORDER BY campaign.created_at LIMIT 1`).first();
+  if (!campaign) return { scheduled: 0, campaign: null, results: [] };
+  const outcome = await advanceAcquisitionEvidenceCampaign(db, env, campaign.id, campaign.workspace_id, batchSize, decryptSecret);
+  return outcome.error
+    ? { scheduled: 1, campaign: campaignView(campaign), results: [], error: outcome.error, status: outcome.status }
+    : { scheduled: 1, ...outcome };
+}
+
 export async function acquisitionEvidenceCampaignResponse(request, db, env, session, segments, deps) {
   const workspaceId = session.active_workspace_id || "";
   if (!workspaceId) return deps.json({ error: "Select a workspace first" }, 409);
