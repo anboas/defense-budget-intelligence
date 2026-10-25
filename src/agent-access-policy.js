@@ -6,6 +6,8 @@ export const DEFAULT_AGENT_SCOPES = Object.freeze([
   "events:write",
   "activity:read",
   "integrations:read",
+  "tasking:read",
+  "tasking:write",
 ]);
 
 const SCOPE_LABELS = Object.freeze({
@@ -18,6 +20,8 @@ const SCOPE_LABELS = Object.freeze({
   "activity:read": "Read activity and API logs",
   "activity:write": "Write activity notes",
   "integrations:read": "Read integration health",
+  "tasking:read": "Read Tasking workspace",
+  "tasking:write": "Manage Tasking and source metadata",
   "graph:read": "Read the intelligence graph",
   "evidence:read": "Read retained evidence",
   "enrichment:propose": "Propose intelligence enrichments",
@@ -28,6 +32,7 @@ const SCOPE_LABELS = Object.freeze({
 
 const GROUP_ORDER = Object.freeze([
   ["records", "Records & tracking"],
+  ["tasking", "Tasking & sources"],
   ["events", "Events & activity"],
   ["intelligence", "Intelligence & review"],
   ["administration", "Administration"],
@@ -35,6 +40,7 @@ const GROUP_ORDER = Object.freeze([
 
 function scopeGroup(scope) {
   if (/^(records|tracking):/.test(scope)) return "records";
+  if (/^tasking:/.test(scope)) return "tasking";
   if (/^(events|activity):/.test(scope)) return "events";
   if (/^(graph:read|evidence:read|enrichment:|review:)/.test(scope)) return "intelligence";
   return "administration";

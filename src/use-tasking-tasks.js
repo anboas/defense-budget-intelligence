@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAuth } from "./AuthContext.jsx";
+import { TASKING_FOUNDATION } from "./tasking-foundation-data.js";
 import { mergeTaskingTasks, taskingTaskFromRow } from "./tasking-model.js";
 
 const STORAGE_PREFIX = "dbi:tasking-task-overrides:v1";
@@ -18,7 +19,7 @@ function writeLocal(workspaceId, rows) {
 }
 
 async function request(path = "", options = {}) {
-  const response = await fetch(`/api/v1/auth/tasking${path}`, {
+  const response = await fetch(`/api/v1/agent/tasking${path}`, {
     credentials: "same-origin",
     headers: { ...(options.body ? { "content-type": "application/json" } : {}), ...(options.headers || {}) },
     ...options,
@@ -26,7 +27,7 @@ async function request(path = "", options = {}) {
   if (response.status === 204) return null;
   const payload = await response.json().catch(() => ({}));
   if (!response.ok) throw Object.assign(new Error(payload.error?.message || payload.error || "Task update failed."), { code: payload.error?.code || payload.code, task: payload.task });
-  return payload;
+  return payload?.data ?? payload;
 }
 
 export function useTaskingTasks() {
@@ -34,13 +35,16 @@ export function useTaskingTasks() {
   const workspaceId = auth?.user?.activeWorkspace?.id || "local";
   const remote = Boolean(auth?.enabled && auth?.user && !auth?.staticHost);
   const [overrides, setOverrides] = useState(() => typeof window === "undefined" ? [] : readLocal(workspaceId));
+  const [workspace, setWorkspace] = useState(() => ({ ...TASKING_FOUNDATION, tasks: mergeTaskingTasks(typeof window === "undefined" ? [] : readLocal(workspaceId)) }));
   const [savingTaskId, setSavingTaskId] = useState("");
   const [notice, setNotice] = useState("");
 
   const refresh = useCallback(async () => {
-    if (!remote) { setOverrides(readLocal(workspaceId)); return; }
+    if (!remote) {
+      const local = readLocal(workspaceId); setOverrides(local); setWorkspace({ ...TASKING_FOUNDATION, tasks: mergeTaskingTasks(local) }); return;
+    }
     const payload = await request();
-    setOverrides((payload?.tasks || []).map(taskingTaskFromRow).filter(Boolean));
+    setWorkspace(payload || TASKING_FOUNDATION);
   }, [remote, workspaceId]);
 
   useEffect(() => {
@@ -54,9 +58,9 @@ export function useTaskingTasks() {
     setSavingTaskId(taskId); setNotice("");
     try {
       if (remote) {
-        const payload = await request(`/${encodeURIComponent(taskId)}`, { method: "PATCH", body: JSON.stringify({ ...values, version: current?.version || 0 }) });
-        const stored = taskingTaskFromRow(payload?.task);
-        setOverrides((rows) => [stored, ...rows.filter((task) => task.taskId !== taskId)].filter(Boolean));
+        const currentTask = workspace.tasks.find((task) => task.id === taskId);
+        const stored = await request(`/tasks/${encodeURIComponent(taskId)}`, { method: "PATCH", headers: { "if-match": String(currentTask?.version || 0) }, body: JSON.stringify(values) });
+        setWorkspace((state) => ({ ...state, tasks: state.tasks.map((task) => task.id === taskId ? stored : task) }));
       } else {
         const stored = taskingTaskFromRow({ taskId, ...values, version: (current?.version || 0) + 1, updatedAt: new Date().toISOString(), updatedBy: "local" });
         const next = [stored, ...overrides.filter((task) => task.taskId !== taskId)].filter(Boolean);
@@ -68,28 +72,31 @@ export function useTaskingTasks() {
       if (error.code === "version_conflict") await refresh().catch(() => {});
       throw error;
     } finally { setSavingTaskId(""); }
-  }, [overrides, refresh, remote, workspaceId]);
+  }, [overrides, refresh, remote, workspace.tasks, workspaceId]);
 
   const resetTask = useCallback(async (taskId) => {
-    const current = overrides.find((task) => task.taskId === taskId);
+    const current = remote ? workspace.tasks.find((task) => task.id === taskId) : overrides.find((task) => task.taskId === taskId);
     if (!current) return;
     setSavingTaskId(taskId); setNotice("");
     try {
-      if (remote) await request(`/${encodeURIComponent(taskId)}?version=${current.version}`, { method: "DELETE" });
+      if (remote) await request(`/tasks/${encodeURIComponent(taskId)}`, { method: "DELETE", headers: { "if-match": String(current.version) } });
       const next = overrides.filter((task) => task.taskId !== taskId);
       if (!remote) writeLocal(workspaceId, next);
-      setOverrides(next); setNotice("Task reset to the foundation state.");
+      setOverrides(next);
+      if (remote) await refresh(); else setWorkspace({ ...TASKING_FOUNDATION, tasks: mergeTaskingTasks(next) });
+      setNotice(current.foundation === false ? "Task removed from this workspace." : "Task reset to the foundation state.");
     } catch (error) {
       setNotice(error.message);
       if (error.code === "version_conflict") await refresh().catch(() => {});
       throw error;
     } finally { setSavingTaskId(""); }
-  }, [overrides, refresh, remote, workspaceId]);
+  }, [overrides, refresh, remote, workspace.tasks, workspaceId]);
 
   return {
-    tasks: useMemo(() => mergeTaskingTasks(overrides), [overrides]),
+    tasks: useMemo(() => remote ? workspace.tasks : mergeTaskingTasks(overrides), [overrides, remote, workspace.tasks]),
+    workspace: useMemo(() => ({ ...workspace, tasks: remote ? workspace.tasks : mergeTaskingTasks(overrides) }), [overrides, remote, workspace]),
     canWrite: Boolean(!remote || auth?.user?.canWriteWorkspace),
-    persistenceLabel: remote ? "Workspace persisted" : "Browser persisted",
+    persistenceLabel: remote ? (workspace.sourceItems?.length ? "Workspace + OneDrive synced" : "Workspace persisted") : "Browser persisted",
     savingTaskId,
     notice,
     saveTask,

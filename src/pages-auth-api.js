@@ -64,6 +64,7 @@ import { teamsResponse as handleTeamsResponse } from "./d1-team-store.js";
 import { emulationResponse as handleEmulationResponse } from "./d1-emulation.js";
 import { D1_USER_ACTIVITY_SCHEMA, recordUserActivityD1, userActivityResponse as handleUserActivityResponse } from "./d1-user-activity.js";
 import { D1_TASKING_SCHEMA, taskingResponse as handleTaskingResponse } from "./d1-tasking.js";
+import { D1_AGENT_TASKING_SCHEMA, TASKING_AGENT_SCOPES, agentTaskingResponse as handleAgentTaskingResponse } from "./d1-agent-tasking.js";
 import { directoryResponse as handleDirectoryResponse } from "./d1-workspace-directory.js";
 import { recordDispositionsResponse as handleRecordDispositionsResponse } from "./d1-record-dispositions.js";
 import { D1_RECORD_GROUP_SCHEMA, recordGroupsResponse as handleRecordGroupsResponse } from "./d1-record-groups.js";
@@ -111,6 +112,7 @@ const AGENT_SCOPES = Object.freeze([
   "events:read", "events:write",
   "activity:read", "activity:write",
   "integrations:read",
+  ...TASKING_AGENT_SCOPES,
   ...AGENT_INTELLIGENCE_SCOPES,
 ]);
 const USER_ROLES = WORKSPACE_ROLE_IDS;
@@ -126,7 +128,7 @@ const DEFAULT_EVENT_CATEGORIES = Object.freeze([
   ["summit", "Summit", "Executive, technical, and mission summits"],
   ["other", "Other", "Workspace events outside the managed categories"],
 ]);
-const READ_SCOPES = Object.freeze(["records:read", "tracking:read", "events:read", "activity:read", "integrations:read", "graph:read", "evidence:read", "review:read"]);
+const READ_SCOPES = Object.freeze(["records:read", "tracking:read", "events:read", "activity:read", "integrations:read", "tasking:read", "graph:read", "evidence:read", "review:read"]);
 const EVENT_AGENT_API_DEPS = Object.freeze({ cleanText, safeJson, recordActivity, hasScope, error: agentError, json: agentJson });
 const EVENT_DISCOVERY_API_DEPS = Object.freeze({ cleanText, safeJson, recordActivity, sameOriginRequest, sessionUser, canAdministerUsers, hashValue, json, defaultWorkspaceId: DEFAULT_WORKSPACE_ID });
 function defaultEventCategoryStatements(db, workspaceId, now) {
@@ -584,6 +586,7 @@ const SCHEMA = Object.freeze([
   ...D1_RECORD_GROUP_SCHEMA,
   ...D1_RECORD_INTELLIGENCE_SCHEMA,
   ...D1_TASKING_SCHEMA,
+  ...D1_AGENT_TASKING_SCHEMA,
   `CREATE TABLE IF NOT EXISTS dbi_workspace_events (
     id TEXT PRIMARY KEY,
     workspace_id TEXT NOT NULL,
@@ -3199,12 +3202,12 @@ async function agentApiResponse(request, env, db) {
     } else if (await rateLimited(db, principal)) {
       response = agentError("rate_limited", `Limit is ${AGENT_RATE_LIMIT} requests per minute`, 429, requestId);
     } else if (resource === "capabilities" && request.method === "GET") response = agentJson({
-      principal, scopes: principal.scopes, rateLimitPerMinute: AGENT_RATE_LIMIT, contractVersion: "1.1.0",
+      principal, scopes: principal.scopes, rateLimitPerMinute: AGENT_RATE_LIMIT, contractVersion: "1.2.0",
       resources: [
         "records", "analytics", "tracking", "record-dispositions", "record-groups", "record-intelligence", "events", "event-catalog", "event-categories",
-        "activity", "api-requests", "integrations", ...AGENT_INTELLIGENCE_RESOURCES,
+        "activity", "api-requests", "integrations", "tasking", ...AGENT_INTELLIGENCE_RESOURCES,
       ],
-      writeBoundary: "Published snapshots are immutable. Agents submit cited workspace proposals; authorized reviewers approve them, and graph administrators publish them atomically as queryable workspace overlays.",
+      writeBoundary: "Published intelligence snapshots remain immutable. Tasking writes are workspace-scoped, versioned, and audited. OneDrive access stays with the calling agent; this API accepts only normalized item metadata and credential-free HTTPS links.",
     }, 200, { requestId });
     else if (resource === "openapi.json" && request.method === "GET") response = Response.json(agentOpenApiDocument(new URL(request.url).origin, SESSION_COOKIE), { headers: { "cache-control": "no-store" } });
     else if (resource === "records") response = await recordsResponse(request, env, db, principal, segments);
@@ -3226,6 +3229,8 @@ async function agentApiResponse(request, env, db) {
     else if (resource === "api-requests") response = await apiRequestsResponse(request, db, principal);
     else if (resource === "integrations") response = await integrationsResponse(request, env, principal);
     else if (resource === "analytics") response = await analyticsResponse(request, env, db, principal);
+    else if (resource === "tasking") response = await handleAgentTaskingResponse(request, db, principal, segments,
+      { error: agentError, expectedVersion, hasScope, idempotent, json: agentJson, recordActivity, safeJson });
     else if (AGENT_INTELLIGENCE_RESOURCES.includes(resource)) response = await agentIntelligenceResponse(request, env, db, principal, resource, segments, {
       error: agentError, json: agentJson, assetJson, boundedInteger, expectedVersion, hasScope, idempotent, recordActivity, safeJson,
     });

@@ -1,6 +1,6 @@
 # Agent API
 
-The Cloudflare Pages deployment exposes Agent API contract `1.1.0` at `/api/v1/agent`. It is designed for trusted automation clients and signed-in workspace users with role-derived scopes. The API combines the immutable published intelligence graph with cited, reviewable workspace overlays.
+The Cloudflare Pages deployment exposes Agent API contract `1.2.0` at `/api/v1/agent`. It is designed for trusted automation clients and signed-in workspace users with role-derived scopes. The API combines the immutable published intelligence graph with cited, reviewable workspace overlays and a mutable workspace Tasking control plane.
 
 ## Authentication
 
@@ -21,6 +21,7 @@ The machine-readable contract is available at `GET /api/v1/agent/openapi.json` a
 - `events:read`, `events:write`
 - `activity:read`, `activity:write`
 - `integrations:read`
+- `tasking:read`, `tasking:write`
 - `graph:read`
 - `evidence:read`
 - `enrichment:propose`
@@ -28,6 +29,8 @@ The machine-readable contract is available at `GET /api/v1/agent/openapi.json` a
 - `graph:admin`
 
 Create the narrowest credential that satisfies the agent's job. A research agent normally needs `graph:read`, `evidence:read`, `enrichment:propose`, and `review:read`. Keep `review:write` and `graph:admin` on separate reviewer and publisher credentials so one autonomous process cannot both propose and promote its own evidence.
+
+A Codex process that synchronizes OneDrive into Tasking normally needs only `tasking:read` and `tasking:write`. Microsoft Graph credentials remain in Codex's protected connector or secret store. The Tasking API never accepts OneDrive access tokens, refresh tokens, authorization headers, or raw connector credentials.
 
 ## Resources
 
@@ -75,6 +78,25 @@ Scoped agent credentials retain workspace-level event visibility because they re
 - `GET /api/v1/agent/integrations`
 
 Every server-side mutation writes an append-only actor/action/entity audit row. Agents with `activity:write` may also add explicit operational notes. Integration status summarizes the factual record index and current public ingestion layers.
+
+### Tasking and normalized OneDrive sources
+
+- `GET /api/v1/agent/tasking`
+- `GET`, `POST /api/v1/agent/tasking/tasks`
+- `GET`, `PATCH`, `DELETE /api/v1/agent/tasking/tasks/{taskId}`
+- `GET`, `POST /api/v1/agent/tasking/records`
+- `GET`, `PATCH`, `DELETE /api/v1/agent/tasking/records/{recordId}`
+- `GET`, `POST /api/v1/agent/tasking/relationships`
+- `GET`, `PATCH`, `DELETE /api/v1/agent/tasking/relationships/{relationshipId}`
+- `GET /api/v1/agent/tasking/source-items`
+- `POST /api/v1/agent/tasking/source-items/batch`
+- `GET`, `PUT`, `DELETE /api/v1/agent/tasking/source-items/{sourceItemId}`
+
+The root read returns one complete workspace projection: foundation and workspace workstreams, anchors, tasks, context records, relationships, plus normalized source items. Records are typed as `workstream`, `anchor`, or `context`. Task and relationship writes use stable caller-provided IDs. Create and synchronization calls require `Idempotency-Key`; updates and deletes require the current integer version through `If-Match`.
+
+Codex owns OneDrive discovery, traversal, delta handling, and content interpretation. It sends only normalized item metadata to Tasking. A source item includes a stable API ID, provider `onedrive`, provider `sourceId`, file or folder `itemType`, name, path, optional drive/item/parent IDs, MIME type, byte size, ETag, last-modified time, parse state, summary, credential-free HTTPS `webUrl`, and optional Tasking `recordId`. Batches accept 1 to 50 items. Reusing an idempotency key with the same payload replays the stored result; reusing it with different content returns a conflict.
+
+Deleting a source item creates a tombstone. `includeDeleted=1` makes tombstones visible for reconciliation. A later OneDrive upsert may restore the same item while preserving its workspace identity and incrementing its version. Source synchronization never overwrites human task fields. Every accepted Tasking mutation is workspace-scoped and audit logged.
 
 ### Intelligence graph
 
@@ -128,16 +150,16 @@ Review decisions require `review:write` and the current proposal version through
 - Responses use the `dbi-agent-v1` envelope and structured error codes with request IDs.
 - Agent calls are limited to 300 requests per credential per minute.
 - Request bodies, text fields, arrays, active credentials, and list results are bounded.
-- Public source snapshots remain factual and immutable. Agents write workspace-management state, manual records, and cited intelligence overlays through the proposal/review/publication workflow.
+- Public source snapshots remain factual and immutable. Agents write workspace-management state, Tasking objects, normalized source metadata, manual records, and cited intelligence overlays through the appropriate scoped workflow.
 - Proposal submission, review, and publication use distinct scopes. The recommended autonomous topology uses separate proposer, reviewer, and publisher credentials.
 - Every accepted mutation is workspace-scoped, idempotent, versioned, and audit logged.
 
 ## Persistence and fallback
 
-Cloudflare Pages Functions store agent keys, tracking, events, manual records, intelligence proposals, sources, approved overlay entities, claims, relations, jobs, idempotency results, rate counters, and activity in namespace-isolated `dbi_*` D1 tables. The signed-in application and Agent API use the same workspace state, so approved human and agent changes converge immediately.
+Cloudflare Pages Functions store agent keys, tracking, events, Tasking objects, normalized OneDrive item metadata, manual records, intelligence proposals, sources, approved overlay entities, claims, relations, jobs, idempotency results, rate counters, and activity in namespace-isolated `dbi_*` D1 tables. The signed-in application and Agent API use the same workspace state, so approved human and agent changes converge immediately.
 
 The GitHub Pages fallback has no authenticated backend. It remains read-only for the Agent API and keeps Operations state browser-local.
 
 ## Verification
 
-`npm run verify:agent-api` creates a fresh local D1 database and proves authentication, discovery, scoped credentials, graph traversal, evidence/source reads, strict proposal rejection, proposal idempotency, reviewer separation, optimistic conflicts, atomic publication, immediate overlay queries, manual-record CRUD, immutable source facts, shared tracking and events, runtime-restart persistence, and revocation.
+`npm run verify:agent-api` creates a fresh local D1 database and proves authentication, discovery, scoped credentials, Tasking CRUD, read/write scope separation, normalized OneDrive batch synchronization, idempotent replay, optimistic conflicts, graph traversal, evidence/source reads, strict proposal rejection, reviewer separation, atomic publication, immediate overlay queries, manual-record CRUD, immutable source facts, shared tracking and events, runtime-restart persistence, and revocation.
