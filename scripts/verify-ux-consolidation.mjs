@@ -14,7 +14,9 @@ assert.doesNotMatch(awards, /className="award-filter-bar/, "Awards must not rest
 assert.match(budget, /QueryRail[\s\S]*filterAriaLabel="Filter budget line items"/, "Funding Request must use the canonical Query Rail instead of a route-owned filter bar");
 assert.match(spend, /ANALYSIS_MODES[\s\S]*portfolio[\s\S]*transactions/, "Analysis Studio must own its bounded modes");
 assert.match(navigation, /id: "analysis"[\s\S]*spendView=analysis/, "Opportunities must expose one Analysis Studio destination");
-assert.doesNotMatch(navigation, /id: "radar"|id: "portfolio"/, "Radar and Portfolio must not compete as workspace destinations");
+const opportunitiesNavigation = navigation.match(/\{ id: "opportunities"[\s\S]*?(?=\n {2}\{ id: "funding")/)?.[0] || "";
+assert.ok(opportunitiesNavigation, "Opportunities navigation must remain independently addressable");
+assert.doesNotMatch(opportunitiesNavigation, /id: "radar"|id: "portfolio"/, "Radar and Portfolio must not compete as Opportunities destinations");
 for (const [label, source] of [["workbench preview", preview], ["analytics preview", analyticsPreview], ["award preview", awards]]) {
   assert.match(source, /EntityPreview/, `${label} must use the canonical entity preview anatomy`);
 }
