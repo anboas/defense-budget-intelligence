@@ -14,9 +14,10 @@ export const PRODUCT_WORKSPACES = [
     { id: "schedule", label: "Schedule", tabId: "schedule", href: ROUTES.schedule },
   ] },
   { id: "tasking", label: "Tasking", href: ROUTES.tasking, tabIds: ["tasking"], views: [
-    { id: "portfolio", label: "Portfolio", tabId: "tasking", href: `${ROUTES.tasking}?taskingView=portfolio` },
-    { id: "files", label: "Files", tabId: "tasking", href: `${ROUTES.tasking}?taskingView=files` },
-    { id: "connections", label: "Connections", tabId: "tasking", href: `${ROUTES.tasking}?taskingView=connections` },
+    { id: "workstreams", label: "Workstreams", tabId: "tasking", href: `${ROUTES.tasking}?taskingView=workstreams` },
+    { id: "tasks", label: "Tasks", tabId: "tasking", href: `${ROUTES.tasking}?taskingView=tasks` },
+    { id: "sources", label: "Sources", tabId: "tasking", href: `${ROUTES.tasking}?taskingView=sources` },
+    { id: "communications", label: "Communications", tabId: "tasking", href: `${ROUTES.tasking}?taskingView=communications` },
   ] },
   { id: "opportunities", label: "Opportunities", href: ROUTES.timeline, tabIds: ["timeline", "spend"], views: [
     { id: "timeline", label: "Timeline", tabId: "timeline", href: ROUTES.timeline },
@@ -57,7 +58,8 @@ export const MANAGEMENT_NAVIGATION = [
 export function navigationContext(activeTab, routeHash = "") {
   const rawSpendView = activeTab === "spend" ? new URLSearchParams(String(routeHash).split("?")[1] || "").get("spendView") || "table" : "";
   const spendView = ["radar", "visuals", "charts"].includes(rawSpendView) ? "analysis" : rawSpendView;
-  const taskingView = activeTab === "tasking" ? new URLSearchParams(String(routeHash).split("?")[1] || "").get("taskingView") || "portfolio" : "";
+  const requestedTaskingView = activeTab === "tasking" ? new URLSearchParams(String(routeHash).split("?")[1] || "").get("taskingView") || "workstreams" : "";
+  const taskingView = ({ portfolio: "workstreams", files: "sources", connections: "workstreams" })[requestedTaskingView] || requestedTaskingView;
   const workspace = PRODUCT_WORKSPACES.find((entry) => entry.tabIds.includes(activeTab)) || null;
   if (!workspace) return { workspace: null, view: null };
   const view = activeTab === "entity-workspace"

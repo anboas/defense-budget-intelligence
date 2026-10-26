@@ -1,298 +1,1195 @@
 import { lazy, Suspense, useMemo, useState } from "react";
 import {
-  AlertTriangle, ArrowRight, CheckCircle2, ChevronDown, ChevronRight, CircleDot,
-  File, FileText, Folder, FolderOpen, GitBranch, Link2, ListFilter, RotateCcw, Save, Search,
+  ArrowRight,
+  CheckCircle2,
+  CircleDot,
+  FileText,
+  GitBranch,
+  Inbox,
+  LayoutList,
+  Mail,
+  MessageCircle,
+  Plus,
+  Search,
+  Send,
+  Target,
+  Users,
 } from "lucide-react";
-import { ControlPageBody, ControlStatusBadge } from "control-surface-ui/react";
-import ControlSelect from "./ControlSelect.jsx";
+import { ControlPageBody } from "control-surface-ui/react";
 import SemanticStatusBadge from "./SemanticStatusBadge.jsx";
+import ControlSelect from "./ControlSelect.jsx";
 import ControlWorkbenchHeader from "./WorkbenchHeader.jsx";
-import { flattenTaskingFolders } from "./tasking-foundation-data.js";
-import { buildTaskingFileAnalytics, formatTaskingBytes, formatTaskingDate, sortTaskingFiles } from "./tasking-file-analytics.js";
-import { TASKING_TASK_STATUSES, taskingTaskOwnerRequired } from "./tasking-model.js";
+import {
+  buildTaskingFileAnalytics,
+  formatTaskingBytes,
+  formatTaskingDate,
+} from "./tasking-file-analytics.js";
+import {
+  TASKING_TASK_STATUSES,
+  taskingTaskOwnerRequired,
+} from "./tasking-model.js";
 import { useTaskingTasks } from "./use-tasking-tasks.js";
+import {
+  communicationsForWorkstream,
+  isCommunication,
+  replaceTaskingRoute,
+  sourceIdsForWorkstream,
+  taskingRouteState,
+  workstreamCategory,
+  workstreamShortName,
+  workstreamState,
+} from "./tasking-workspace-support.js";
 import "./TaskingWorkspace.css";
 
-const VIEW_IDS = new Set(["portfolio", "files", "connections"]);
-const OPEN_STATUSES = new Set(["draft", "ready", "in-progress", "waiting", "review"]);
-const FILE_RELATIONS = new Set(["all", "task", "workspace", "unlinked"]);
-const FILE_SORTS = new Set(["modified-desc", "size-desc", "name-asc"]);
-const TaskingFileView = lazy(() => import("./TaskingFileView.jsx"));
+const TaskingSourceExplorer = lazy(() => import("./TaskingSourceExplorer.jsx"));
+const OPEN_STATUSES = new Set([
+  "draft",
+  "ready",
+  "in-progress",
+  "waiting",
+  "review",
+]);
 
-function taskStatusLabel(status) {
-  if (status === "review") return "In review";
-  if (status === "completed") return "Complete";
-  return status.replaceAll("-", " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
+function label(value = "") {
+  if (value === "review") return "In review";
+  if (value === "completed") return "Complete";
+  return String(value)
+    .replaceAll("-", " ")
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
-function routeState(routeHash = "") {
-  const params = new URLSearchParams(String(routeHash).split("?")[1] || "");
-  const requestedView = params.get("taskingView") || "portfolio";
-  return {
-    view: VIEW_IDS.has(requestedView) ? requestedView : "portfolio",
-    recordId: params.get("taskingRecord") || "",
-    query: params.get("taskingQuery") || "",
-    workstreamId: params.get("taskingWorkstream") || "all",
-    status: params.get("taskingStatus") || "all",
-    fileType: params.get("taskingFileType") || "all",
-    fileRelation: FILE_RELATIONS.has(params.get("taskingFileRelation")) ? params.get("taskingFileRelation") : "all",
-    fileSort: FILE_SORTS.has(params.get("taskingFileSort")) ? params.get("taskingFileSort") : "modified-desc",
-  };
-}
-
-function updateTaskingRoute(patch) {
-  const [path, search = ""] = String(window.location.hash || "#/tasking").split("?");
-  const params = new URLSearchParams(search);
-  for (const [key, value] of Object.entries(patch)) {
-    if (value === undefined || value === null || value === "" || value === "all") params.delete(key);
-    else params.set(key, String(value));
-  }
-  window.location.hash = `${path}${params.size ? `?${params}` : ""}`;
-}
-
-function recordHref(recordId, view) {
-  const params = new URLSearchParams(String(window.location.hash).split("?")[1] || "");
-  params.set("taskingView", view);
-  params.set("taskingRecord", recordId);
-  return `#/tasking?${params}`;
-}
-
-function FolderTreeNode({ node, selectedId, onSelect, depth = 0 }) {
-  const hasChildren = Boolean(node.children?.length);
-  const [expanded, setExpanded] = useState(depth < 2);
-  const Icon = node.kind === "folder" ? (expanded ? FolderOpen : Folder) : node.name.endsWith(".xlsx") ? File : FileText;
-  return <li className="tasking-tree__item" data-depth={depth}>
-    <div className={`tasking-tree__row${selectedId === node.id ? " is-selected" : ""}`} style={{ "--tasking-tree-depth": depth }}>
-      {hasChildren ? <button type="button" className="tasking-tree__toggle" aria-label={`${expanded ? "Collapse" : "Expand"} ${node.name}`} aria-expanded={expanded} onClick={() => setExpanded((value) => !value)}>{expanded ? <ChevronDown size={13} /> : <ChevronRight size={13} />}</button> : <span className="tasking-tree__spacer" aria-hidden="true" />}
-      <button type="button" className="tasking-tree__select" aria-current={selectedId === node.id ? "true" : undefined} onClick={() => onSelect(node)}>
-        <Icon size={15} aria-hidden="true" />
-        <span>{node.name}</span>
-        {node.status ? <i className={`tasking-tree__state is-${node.status}`} aria-label={node.status} /> : null}
-      </button>
+function EmptyState({ icon: Icon = Inbox, title, copy, action }) {
+  return (
+    <div className="tasking-empty-state">
+      <span>
+        <Icon size={21} />
+      </span>
+      <h3>{title}</h3>
+      <p>{copy}</p>
+      {action}
     </div>
-    {hasChildren && expanded ? <ul>{node.children.map((child) => <FolderTreeNode key={child.id} node={child} selectedId={selectedId} onSelect={onSelect} depth={depth + 1} />)}</ul> : null}
-  </li>;
+  );
 }
 
-function FolderTree({ folders, selectedId, onSelect, itemCount = 0 }) {
-  return <section className="tasking-folder-panel" aria-labelledby="tasking-folder-title">
-    <header><div><span>Source structure</span><h3 id="tasking-folder-title">Business homes</h3></div><ControlStatusBadge status={itemCount ? "verified" : "neutral"} label={itemCount ? `${itemCount} indexed` : "No source"} /></header>
-    {folders.length ? <ul className="tasking-tree">{folders.map((node) => <FolderTreeNode key={node.id} node={node} selectedId={selectedId} onSelect={onSelect} />)}</ul> : <div className="tasking-empty"><Folder size={20} /><strong>No source metadata</strong><span>Codex can add read-only local source metadata through the Agent API.</span></div>}
-    <footer><strong>Folder hierarchy and work context stay separate.</strong><span>Originals are never moved to match Tasking classifications.</span></footer>
-  </section>;
+function WorkstreamPill({ workstream, anchors = [] }) {
+  return (
+    <span className="tasking-workstream-pill" title={workstream.name}>
+      <strong>{workstream.shortName}</strong>
+      <small>{label(workstreamState(workstream, anchors))}</small>
+    </span>
+  );
 }
 
-function sourceTree(sourceItems = []) {
-  if (!sourceItems.length) return [];
-  const activeItems = sourceItems.filter((item) => !item.deletedAt);
-  const nodes = new Map(activeItems.map((item) => [item.sourceId, { ...item, kind: item.itemType, children: [] }]));
-  const roots = [];
-  for (const item of activeItems) {
-    const node = nodes.get(item.sourceId);
-    const parent = nodes.get(item.parentSourceId);
-    if (parent && parent !== node) parent.children.push(node); else roots.push(node);
-  }
-  const sortNodes = (items) => items.sort((left, right) => (left.kind === right.kind ? left.name.localeCompare(right.name) : left.kind === "folder" ? -1 : 1)).map((item) => ({ ...item, children: sortNodes(item.children) }));
-  return sortNodes(roots);
+function WorkstreamRail({
+  workstreams,
+  anchors,
+  tasks,
+  communications,
+  sourceItems,
+  selectedId,
+  onSelect,
+}) {
+  const [query, setQuery] = useState("");
+  const [sort, setSort] = useState("recent");
+  const visible = useMemo(() => {
+    const normalized = query.trim().toLowerCase();
+    return workstreams
+      .filter(
+        (item) =>
+          !normalized ||
+          `${item.name} ${item.description} ${item.shortName} ${item.category}`
+            .toLowerCase()
+            .includes(normalized),
+      )
+      .sort((a, b) =>
+        sort === "name"
+          ? a.name.localeCompare(b.name)
+          : sort === "tasks"
+            ? tasks.filter(
+                (task) =>
+                  task.workstreamId === b.id && OPEN_STATUSES.has(task.status),
+              ).length -
+              tasks.filter(
+                (task) =>
+                  task.workstreamId === a.id && OPEN_STATUSES.has(task.status),
+              ).length
+            : String(b.updatedAt || "").localeCompare(
+                String(a.updatedAt || ""),
+              ),
+      );
+  }, [query, sort, tasks, workstreams]);
+  return (
+    <aside className="tasking-workstream-rail" aria-label="Workstreams">
+      <header>
+        <span>Primary operating units</span>
+        <h2>Workstreams</h2>
+        <label className="tasking-rail-search">
+          <Search size={14} />
+          <span className="sr-only">Search workstreams</span>
+          <input
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Search workstreams…"
+          />
+        </label>
+        <ControlSelect
+          compact
+          ariaLabel="Sort workstreams"
+          value={sort}
+          options={[
+            ["recent", "Recent activity"],
+            ["name", "Name"],
+            ["tasks", "Open tasks"],
+          ]}
+          onChange={setSort}
+        />
+      </header>
+      <div className="tasking-workstream-list">
+        {visible.map((stream) => {
+          const streamAnchors = anchors.filter(
+            (anchor) => anchor.workstreamId === stream.id,
+          );
+          const anchorIds = new Set(streamAnchors.map((anchor) => anchor.id));
+          const streamTasks = tasks.filter((task) =>
+            anchorIds.has(task.anchorId),
+          );
+          const streamSources = sourceItems.filter(
+            (item) => anchorIds.has(item.recordId) && item.itemType === "file",
+          );
+          const streamComms = communicationsForWorkstream(
+            communications,
+            stream.id,
+            anchorIds,
+          );
+          return (
+            <button
+              type="button"
+              key={stream.id}
+              className="tasking-workstream-item"
+              aria-current={selectedId === stream.id ? "true" : undefined}
+              onClick={() => onSelect(stream.id)}
+            >
+              <i data-tone={stream.tone || "blue"} />
+              <span>
+                <span className="tasking-workstream-item__top">
+                  <strong>{stream.shortName}</strong>
+                  <small>{label(workstreamState(stream, streamAnchors))}</small>
+                </span>
+                <b>{stream.name}</b>
+                <em>{stream.category}</em>
+                <span className="tasking-workstream-item__counts">
+                  <small>
+                    {
+                      streamTasks.filter((task) =>
+                        OPEN_STATUSES.has(task.status),
+                      ).length
+                    }{" "}
+                    open
+                  </small>
+                  <small>{streamSources.length} files</small>
+                  <small>{streamComms.length} messages</small>
+                </span>
+              </span>
+            </button>
+          );
+        })}
+      </div>
+      {!visible.length ? (
+        <p className="tasking-rail-empty">No workstreams match this search.</p>
+      ) : null}
+    </aside>
+  );
 }
 
 function TaskRow({ task, selected, onSelect }) {
-  return <button type="button" className={`tasking-task-row${selected ? " is-selected" : ""}`} onClick={() => onSelect(task.id)}>
-    <span className="tasking-task-row__status" data-status={task.status} aria-hidden="true" />
-    <span><strong>{task.title}</strong><small>{task.owner || "No owner"} · {task.evidenceCount || 0} evidence{task.dependencyCount ? ` · ${task.dependencyCount} wait` : ""}</small></span>
-    <SemanticStatusBadge category="workflow" value={task.status} />
-  </button>;
-}
-
-function AnchorCard({ anchor, tasks, selectedId, onSelect }) {
-  const selected = selectedId === anchor.id || tasks.some((task) => task.id === selectedId);
-  return <article className={`tasking-anchor-card${selected ? " is-selected" : ""}`} data-anchor-kind={anchor.kind.toLowerCase()}>
-    <button type="button" className="tasking-anchor-card__head" onClick={() => onSelect(anchor.id)}>
-      <span><small>{anchor.kind} anchor</small><strong>{anchor.title}</strong></span>
-      <SemanticStatusBadge category="workflow" value={anchor.status} />
+  return (
+    <button
+      type="button"
+      className={`tasking-task-row${selected ? " is-selected" : ""}`}
+      onClick={() => onSelect(task.id)}
+    >
+      <span className="tasking-task-row__status" data-status={task.status} />
+      <span>
+        <strong>{task.title}</strong>
+        <small>
+          {task.owner || "No owner"} ·{" "}
+          {task.acceptance ? "Acceptance recorded" : "Acceptance missing"}
+        </small>
+      </span>
+      <SemanticStatusBadge category="workflow" value={task.status} />
     </button>
-    <div className="tasking-anchor-card__outcome"><span>Outcome</span><p>{anchor.outcome || "No outcome recorded."}</p></div>
-    <div className="tasking-anchor-card__move"><span>Next accepted move</span><strong>{anchor.nextMove || "No next move recorded"}</strong><small>{anchor.dueLabel || "No date"}</small></div>
-    <div className="tasking-anchor-card__tasks">{tasks.length ? tasks.map((task) => <TaskRow key={task.id} task={task} selected={selectedId === task.id} onSelect={onSelect} />) : <p className="tasking-anchor-card__empty">No tasks attached yet.</p>}</div>
-    <footer><span><Link2 size={12} />{anchor.connectionIds?.length || 0} connected records</span><span>{anchor.updatedLabel || "Workspace updated"}</span></footer>
-  </article>;
+  );
 }
 
-function PortfolioView({ workstreams, anchors, tasks, selectedId, onSelect }) {
-  return <section className="tasking-lanes" aria-label="Workstream portfolio">
-    {workstreams.map((workstream) => {
-      const laneAnchors = anchors.filter((anchor) => anchor.workstreamId === workstream.id);
-      const laneTasks = tasks.filter((task) => laneAnchors.some((anchor) => anchor.id === task.anchorId));
-      return <section key={workstream.id} className="tasking-lane" data-tone={workstream.tone}>
-        <header className="tasking-lane__identity"><small>Workstream</small><h3>{workstream.name}</h3><p>{workstream.description}</p><strong>{laneAnchors.length} {laneAnchors.length === 1 ? "anchor" : "anchors"} · {laneTasks.length} {laneTasks.length === 1 ? "task" : "tasks"}</strong></header>
-        <div className="tasking-lane__anchors">{laneAnchors.map((anchor) => <AnchorCard key={anchor.id} anchor={anchor} tasks={tasks.filter((task) => task.anchorId === anchor.id)} selectedId={selectedId} onSelect={onSelect} />)}</div>
-      </section>;
-    })}
-  </section>;
+function TaskComposer({ anchors, canWrite, onCreate, onCancel }) {
+  const [draft, setDraft] = useState({
+    title: "",
+    description: "",
+    acceptance: "",
+    owner: "",
+    anchorId: anchors[0]?.id || "",
+    status: "draft",
+  });
+  const [error, setError] = useState("");
+  const ready =
+    draft.title.trim() &&
+    draft.description.trim() &&
+    draft.acceptance.trim() &&
+    draft.anchorId &&
+    (!taskingTaskOwnerRequired(draft.status) || draft.owner.trim());
+  return (
+    <form
+      className="tasking-task-composer"
+      data-tasking-task-composer
+      onSubmit={(event) => {
+        event.preventDefault();
+        setError("");
+        void onCreate(draft).catch((caught) => setError(caught.message));
+      }}
+    >
+      <header>
+        <div>
+          <span>New workspace task</span>
+          <h3>Create task</h3>
+        </div>
+        <button
+          type="button"
+          className="if-btn if-btn--ghost if-btn--sm"
+          onClick={onCancel}
+        >
+          Cancel
+        </button>
+      </header>
+      <label>
+        <span>Title</span>
+        <input
+          className="if-input"
+          value={draft.title}
+          maxLength={160}
+          onChange={(event) =>
+            setDraft({ ...draft, title: event.target.value })
+          }
+        />
+      </label>
+      <label>
+        <span>Anchor</span>
+        <ControlSelect
+          ariaLabel="Task anchor"
+          value={draft.anchorId}
+          options={anchors.map((anchor) => [
+            anchor.id,
+            `${anchor.kind}: ${anchor.title}`,
+          ])}
+          onChange={(anchorId) => setDraft({ ...draft, anchorId })}
+        />
+      </label>
+      <label>
+        <span>Description</span>
+        <textarea
+          className="if-input"
+          rows={3}
+          maxLength={1200}
+          value={draft.description}
+          onChange={(event) =>
+            setDraft({ ...draft, description: event.target.value })
+          }
+        />
+      </label>
+      <label>
+        <span>Acceptance conditions</span>
+        <textarea
+          className="if-input"
+          rows={3}
+          maxLength={500}
+          value={draft.acceptance}
+          onChange={(event) =>
+            setDraft({ ...draft, acceptance: event.target.value })
+          }
+        />
+      </label>
+      <label>
+        <span>
+          Owner <small>optional for drafts</small>
+        </span>
+        <input
+          className="if-input"
+          maxLength={100}
+          value={draft.owner}
+          onChange={(event) =>
+            setDraft({ ...draft, owner: event.target.value })
+          }
+          placeholder="Leave blank until confirmed"
+        />
+      </label>
+      <footer>
+        <button
+          type="submit"
+          className="if-btn if-btn--primary if-btn--sm"
+          disabled={!canWrite || !ready}
+        >
+          <Plus size={14} />
+          Create draft
+        </button>
+        {error ? <p role="alert">{error}</p> : null}
+      </footer>
+    </form>
+  );
 }
 
-function ConnectionsView({ records, relationships, selectedId, onSelect }) {
-  const visibleIds = new Set(relationships.flatMap((relationship) => [relationship.fromId, relationship.toId]));
-  const nodes = records.filter((record) => visibleIds.has(record.id));
-  return <section className="tasking-connections" aria-labelledby="tasking-connections-title">
-    <header><div><span>Typed relationship view</span><h3 id="tasking-connections-title">Connected work</h3><p>Confirmed links are solid. Suggested links remain dashed until human review.</p></div><span className="tasking-connections__legend"><i />Confirmed <i className="is-suggested" />Suggested</span></header>
-    {relationships.length ? <><div className="tasking-graph" aria-label="Records participating in Tasking relationships">
-      {nodes.map((record) => <button key={record.id} type="button" className={`tasking-graph__node${selectedId === record.id ? " is-selected" : ""}`} onClick={() => onSelect(record.id)}>
-        <small>{record.kind}</small><strong>{record.title}</strong><span>{record.status?.replaceAll("-", " ") || "Context"}</span>
-      </button>)}
-    </div>
-    <div className="tasking-relationship-list" role="list" aria-label="Relationship list alternative">{relationships.map((relationship) => {
-      const from = records.find((record) => record.id === relationship.fromId);
-      const to = records.find((record) => record.id === relationship.toId);
-      return <article key={relationship.id} role="listitem"><span><strong>{from?.title || relationship.fromId}</strong><small>{from?.kind || "Missing record"}</small></span><span className={relationship.status === "suggested" ? "is-suggested" : ""}><GitBranch size={14} />{relationship.type}<small>{relationship.status}</small></span><span><strong>{to?.title || relationship.toId}</strong><small>{to?.kind || "Missing record"}</small></span></article>;
-    })}</div></> : <div className="tasking-empty"><GitBranch size={20} /><strong>No relationships recorded</strong><span>Typed connections will appear here after review.</span></div>}
-  </section>;
+function TasksView({
+  tasks,
+  anchors,
+  selectedId,
+  onSelect,
+  onCreate,
+  canWrite,
+}) {
+  const [composing, setComposing] = useState(false);
+  const open = tasks.filter((task) => OPEN_STATUSES.has(task.status));
+  const done = tasks.filter((task) => !OPEN_STATUSES.has(task.status));
+  if (composing)
+    return (
+      <TaskComposer
+        anchors={anchors}
+        canWrite={canWrite}
+        onCancel={() => setComposing(false)}
+        onCreate={async (values) => {
+          const created = await onCreate(values);
+          setComposing(false);
+          onSelect(created.id);
+        }}
+      />
+    );
+  return (
+    <section className="tasking-task-surface" data-tasking-task-surface>
+      <header>
+        <div>
+          <h3>Tasking</h3>
+          <p>
+            Open and finished work stay visible with evidence and acceptance
+            conditions.
+          </p>
+        </div>
+        <button
+          type="button"
+          className="if-btn if-btn--primary if-btn--sm"
+          disabled={!canWrite || !anchors.length}
+          onClick={() => setComposing(true)}
+        >
+          <Plus size={14} />
+          Create task
+        </button>
+      </header>
+      <div className="tasking-task-columns">
+        <section>
+          <header>
+            <strong>Open work</strong>
+            <span>{open.length}</span>
+          </header>
+          {open.length ? (
+            open.map((task) => (
+              <TaskRow
+                key={task.id}
+                task={task}
+                selected={selectedId === task.id}
+                onSelect={onSelect}
+              />
+            ))
+          ) : (
+            <EmptyState
+              icon={Target}
+              title="No open tasks"
+              copy="Create a draft without inventing an owner or date, then promote it when accountability is confirmed."
+              action={
+                <button
+                  type="button"
+                  className="if-btn if-btn--primary if-btn--sm"
+                  disabled={!canWrite || !anchors.length}
+                  onClick={() => setComposing(true)}
+                >
+                  Create first task
+                </button>
+              }
+            />
+          )}
+        </section>
+        <section>
+          <header>
+            <strong>Finished work</strong>
+            <span>{done.length}</span>
+          </header>
+          {done.length ? (
+            done.map((task) => (
+              <TaskRow
+                key={task.id}
+                task={task}
+                selected={selectedId === task.id}
+                onSelect={onSelect}
+              />
+            ))
+          ) : (
+            <EmptyState
+              icon={CheckCircle2}
+              title="No finished tasks"
+              copy="Completed and cancelled work remains visible with its source and communication evidence."
+            />
+          )}
+        </section>
+      </div>
+    </section>
+  );
 }
 
-function TaskEditor({ task, canWrite, saving, notice, onSave, onReset }) {
-  const [draft, setDraft] = useState(() => ({ status: task.status, owner: task.owner, acceptance: task.acceptance }));
+function Overview({
+  workstream,
+  anchors,
+  tasks,
+  files,
+  communications,
+  onSection,
+  onSelect,
+  canWrite,
+}) {
+  const open = tasks.filter((task) => OPEN_STATUSES.has(task.status));
+  return (
+    <section className="tasking-overview" data-tasking-overview>
+      <div className="tasking-summary-grid">
+        <article>
+          <span>State</span>
+          <strong>{label(workstreamState(workstream, anchors))}</strong>
+          <small>{workstream.category}</small>
+        </article>
+        <article>
+          <span>Open tasks</span>
+          <strong>{open.length}</strong>
+          <small>{tasks.length - open.length} finished</small>
+        </article>
+        <article>
+          <span>Supporting files</span>
+          <strong>{files.length}</strong>
+          <small>
+            {files.filter((file) => file.recordId).length} reviewed placements
+          </small>
+        </article>
+        <article>
+          <span>Communications</span>
+          <strong>{communications.length}</strong>
+          <small>Email, IM, and meetings</small>
+        </article>
+      </div>
+      <section className="tasking-section">
+        <header>
+          <div>
+            <h3>Work to move</h3>
+            <p>Tasking lives in the workstream, not behind a selected file.</p>
+          </div>
+          <button
+            type="button"
+            className="if-btn if-btn--ghost if-btn--sm"
+            onClick={() => onSection("tasks")}
+          >
+            Open tasks <ArrowRight size={13} />
+          </button>
+        </header>
+        {open.length ? (
+          <div className="tasking-overview-tasks">
+            {open.slice(0, 5).map((task) => (
+              <TaskRow key={task.id} task={task} onSelect={onSelect} />
+            ))}
+          </div>
+        ) : (
+          <EmptyState
+            icon={Target}
+            title="No tasks in this workstream yet"
+            copy="Create a reviewed draft here. Blank owners and unconfirmed dates stay blank."
+            action={
+              <button
+                type="button"
+                className="if-btn if-btn--primary if-btn--sm"
+                disabled={!canWrite || !anchors.length}
+                onClick={() => onSection("tasks")}
+              >
+                <Plus size={14} />
+                Create first task
+              </button>
+            }
+          />
+        )}
+      </section>
+      <section className="tasking-section">
+        <header>
+          <div>
+            <h3>Supporting sources</h3>
+            <p>
+              A bounded preview. The full hierarchy stays collapsed until you
+              open it.
+            </p>
+          </div>
+          <button
+            type="button"
+            className="if-btn if-btn--ghost if-btn--sm"
+            onClick={() => onSection("sources")}
+          >
+            Browse sources <ArrowRight size={13} />
+          </button>
+        </header>
+        {files.length ? (
+          <div className="tasking-source-preview">
+            {files.slice(0, 6).map((file) => (
+              <button
+                key={file.id}
+                type="button"
+                onClick={() => {
+                  onSelect(file.id);
+                  onSection("sources");
+                }}
+              >
+                <FileText size={17} />
+                <span>
+                  <strong>{file.name}</strong>
+                  <small>
+                    {formatTaskingBytes(file.size)} ·{" "}
+                    {formatTaskingDate(file.lastModifiedAt)}
+                  </small>
+                </span>
+                <WorkstreamPill workstream={workstream} anchors={anchors} />
+              </button>
+            ))}
+          </div>
+        ) : (
+          <EmptyState
+            icon={FileText}
+            title="No files placed here"
+            copy="Reviewed file placements appear without moving or modifying source originals."
+          />
+        )}
+      </section>
+    </section>
+  );
+}
+
+function CommunicationsView({ records }) {
+  const channels = [
+    { id: "email", label: "Email", Icon: Mail },
+    { id: "im", label: "IM", Icon: MessageCircle },
+    { id: "meeting", label: "Meetings", Icon: Users },
+  ];
+  return (
+    <section className="tasking-communications" data-tasking-communications>
+      <div className="tasking-communication-types">
+        {channels.map(({ id, label: channelLabel, Icon }) => (
+          <article key={id}>
+            <Icon size={17} />
+            <span>
+              <strong>{channelLabel}</strong>
+              <small>
+                {
+                  records.filter((record) =>
+                    String(record.channel || record.kind)
+                      .toLowerCase()
+                      .includes(id),
+                  ).length
+                }{" "}
+                synced
+              </small>
+            </span>
+          </article>
+        ))}
+      </div>
+      {records.length ? (
+        <div className="tasking-communication-list">
+          {records.map((record) => (
+            <article key={record.id}>
+              <Mail size={16} />
+              <span>
+                <strong>{record.title}</strong>
+                <small>{record.description || record.summary}</small>
+              </span>
+              <SemanticStatusBadge
+                category="workflow"
+                value={record.status || "open"}
+              />
+            </article>
+          ))}
+        </div>
+      ) : (
+        <EmptyState
+          icon={Send}
+          title="No communications connected yet"
+          copy="This workstream owns future email, IM, and meeting records. Synced correspondence will retain participants, time, source system, attachments, and reviewed links to tasks and files. No Microsoft authentication is introduced here."
+          action={
+            <button
+              className="if-btn if-btn--ghost if-btn--sm"
+              type="button"
+              disabled
+            >
+              Connector setup coming next
+            </button>
+          }
+        />
+      )}
+    </section>
+  );
+}
+
+function InteractionsView({ relationships, records, onSelect, onSources }) {
+  return (
+    <section className="tasking-interactions" data-tasking-interactions>
+      {relationships.length ? (
+        relationships.map((relationship) => {
+          const from = records.get(relationship.fromId);
+          const to = records.get(relationship.toId);
+          return (
+            <article key={relationship.id}>
+              <button type="button" onClick={() => onSelect(from?.id)}>
+                <strong>
+                  {from?.title || from?.name || relationship.fromId}
+                </strong>
+                <small>{from?.kind || "Record"}</small>
+              </button>
+              <span
+                className={
+                  relationship.status === "suggested" ? "is-suggested" : ""
+                }
+              >
+                <GitBranch size={14} />
+                {relationship.type}
+                <small>{relationship.status}</small>
+              </span>
+              <button type="button" onClick={() => onSelect(to?.id)}>
+                <strong>{to?.title || to?.name || relationship.toId}</strong>
+                <small>{to?.kind || "Record"}</small>
+              </button>
+              <p>{relationship.basis}</p>
+            </article>
+          );
+        })
+      ) : (
+        <EmptyState
+          icon={GitBranch}
+          title="No reviewed interactions yet"
+          copy="Interactions show confirmed and suggested links among this workstream's tasks, sources, communications, and context. Nothing is inferred from filenames alone."
+          action={
+            <button
+              type="button"
+              className="if-btn if-btn--ghost if-btn--sm"
+              onClick={onSources}
+            >
+              Review supporting sources
+            </button>
+          }
+        />
+      )}
+    </section>
+  );
+}
+
+function TaskInspector({ task, taskState }) {
+  const [draft, setDraft] = useState({
+    status: task.status,
+    owner: task.owner || "",
+    acceptance: task.acceptance || "",
+  });
   const ownerRequired = taskingTaskOwnerRequired(draft.status);
-  return <form className="tasking-task-editor" data-tasking-task-editor onSubmit={(event) => { event.preventDefault(); void onSave(task.id, draft).catch(() => {}); }}>
-    <header><h4>Task state <span>{task.persisted ? `Version ${task.version}` : "Foundation value"}</span></h4>{task.persisted ? <ControlStatusBadge status="verified" label="Persisted" /> : null}</header>
-    <label><span>Status</span><span data-tasking-status-control><ControlSelect compact ariaLabel="Task status" value={draft.status} options={TASKING_TASK_STATUSES.map((value) => [value, taskStatusLabel(value)])} onChange={(value) => setDraft((current) => ({ ...current, status: value }))} disabled={!canWrite || saving} /></span></label>
-    <label><span>Owner{ownerRequired ? "" : " (optional for draft)"}</span><input className="if-input" data-tasking-owner-input value={draft.owner} maxLength={100} placeholder={ownerRequired ? "Name the accountable owner" : "Leave blank until confirmed"} disabled={!canWrite || saving} onChange={(event) => setDraft((current) => ({ ...current, owner: event.target.value }))} /></label>
-    <label><span>Acceptance</span><textarea className="if-input" value={draft.acceptance} maxLength={500} rows={3} disabled={!canWrite || saving} onChange={(event) => setDraft((current) => ({ ...current, acceptance: event.target.value }))} /></label>
-    <div className="tasking-task-editor__actions"><button className="if-btn if-btn--primary if-btn--sm" type="submit" disabled={!canWrite || saving || (ownerRequired && !draft.owner.trim()) || !draft.acceptance.trim()}><Save size={14} />{saving ? "Saving…" : "Save task"}</button>{task.persisted ? <button className="if-btn if-btn--ghost if-btn--sm" type="button" disabled={!canWrite || saving} onClick={() => void onReset(task.id).catch(() => {})}><RotateCcw size={14} />Remove</button> : null}</div>
-    {notice ? <p className="if-field__hint" role="status">{notice}</p> : null}
-    {!canWrite ? <p className="if-field__hint">Workspace write access is required to change task state.</p> : null}
-  </form>;
+  return (
+    <form
+      className="tasking-inspector-editor"
+      data-tasking-task-editor
+      onSubmit={(event) => {
+        event.preventDefault();
+        void taskState.saveTask(task.id, draft).catch(() => {});
+      }}
+    >
+      <label>
+        <span>Status</span>
+        <ControlSelect
+          ariaLabel="Task status"
+          value={draft.status}
+          options={TASKING_TASK_STATUSES.map((status) => [
+            status,
+            label(status),
+          ])}
+          onChange={(status) => setDraft({ ...draft, status })}
+        />
+      </label>
+      <label>
+        <span>Owner{ownerRequired ? "" : " (optional)"}</span>
+        <input
+          className="if-input"
+          data-tasking-owner-input
+          value={draft.owner}
+          onChange={(event) =>
+            setDraft({ ...draft, owner: event.target.value })
+          }
+        />
+      </label>
+      <label>
+        <span>Acceptance</span>
+        <textarea
+          className="if-input"
+          rows={4}
+          value={draft.acceptance}
+          onChange={(event) =>
+            setDraft({ ...draft, acceptance: event.target.value })
+          }
+        />
+      </label>
+      <span className="tasking-inspector-editor__actions">
+        <button
+          className="if-btn if-btn--primary if-btn--sm"
+          type="submit"
+          disabled={
+            !taskState.canWrite ||
+            (ownerRequired && !draft.owner.trim()) ||
+            !draft.acceptance.trim()
+          }
+        >
+          Save task
+        </button>
+        <button
+          className="if-btn if-btn--ghost if-btn--sm"
+          type="button"
+          disabled={!taskState.canWrite}
+          onClick={() => void taskState.resetTask(task.id).catch(() => {})}
+        >
+          Delete task
+        </button>
+      </span>
+    </form>
+  );
 }
 
-function ContextPanel({ record, anchor, folder, relatedRecords, relationshipRows, workstreams, onSelect, taskState }) {
-  if (!record) return <aside className="tasking-context"><p>No record selected.</p></aside>;
-  const task = record.kind === "Task" ? record : null;
-  const file = record.kind === "File" ? record : null;
-  return <aside className="tasking-context" aria-labelledby="tasking-context-title">
-    <header><span>Selected {record.kind}</span><h3 id="tasking-context-title">{record.title || record.name}</h3><SemanticStatusBadge category="workflow" value={record.status || "ready"} /></header>
-    <section className="tasking-context__summary"><h4>What matters</h4><p>{record.description || record.outcome || record.summary || (file ? "Read-only source metadata is available without opening or changing the file." : "Folder context is available without changing the source structure.")}</p></section>
-    <dl className="tasking-context__facts">
-      {file ? <>
-        <div><dt>File type</dt><dd>{file.fileType?.label || "Unknown"}</dd></div>
-        <div><dt>Size</dt><dd>{formatTaskingBytes(file.size)}</dd></div>
-        <div><dt>Last modified</dt><dd>{formatTaskingDate(file.lastModifiedAt)}</dd></div>
-        <div><dt>Task relation</dt><dd>{file.taskIds?.length ? `${file.taskIds.length} ${file.taskIds.length === 1 ? "task" : "tasks"}` : file.workspaceLinked ? "Workspace only" : "Not linked"}</dd></div>
-      </> : <>
-        <div><dt>Primary placement</dt><dd>{anchor ? workstreams.find((workstream) => workstream.id === anchor.workstreamId)?.name : "Source structure"}</dd></div>
-        <div><dt>Business home</dt><dd>{folder?.path || "Not linked"}</dd></div>
-        <div><dt>Source state</dt><dd>{anchor?.sourceState || record.status || "Observed"}</dd></div>
-        <div><dt>Acceptance</dt><dd>{task?.acceptance || "Record-specific review"}</dd></div>
-      </>}
-    </dl>
-    {anchor ? <section className="tasking-context__next"><span>Next accepted move</span><strong>{anchor.nextMove}</strong><small>{anchor.dueLabel}</small></section> : null}
-    {task ? <TaskEditor key={`${task.id}:${task.version}`} task={task} canWrite={taskState.canWrite} saving={taskState.savingTaskId === task.id} notice={taskState.notice} onSave={taskState.saveTask} onReset={taskState.resetTask} /> : null}
-    <section className="tasking-context__links"><header><h4>Connected context</h4><span>{relatedRecords.length}</span></header>{relatedRecords.map((related) => <button key={related.id} type="button" onClick={() => onSelect(related.id)}><span><strong>{related.title || related.name}</strong><small>{related.kind}</small></span><ArrowRight size={14} /></button>)}</section>
-    {relationshipRows.length ? <section className="tasking-context__basis"><h4>Relationship basis</h4>{relationshipRows.map((relationship) => <p key={relationship.id}><span className={relationship.status === "suggested" ? "is-suggested" : ""}>{relationship.status}</span>{relationship.type} · {relationship.basis}</p>)}</section> : null}
-    <footer><CircleDot size={14} /><span><strong>{taskState.persistenceLabel}</strong>{taskState.workspace.sourceItems?.length ? "Codex-synchronized source metadata is available; source files remain read only and outside this application." : "Tasking state is scoped to the active workspace."}</span></footer>
-  </aside>;
+function Inspector({ record, workstream, anchors, taskState, taskIds = [] }) {
+  if (!record)
+    return (
+      <aside className="tasking-inspector">
+        <EmptyState
+          icon={LayoutList}
+          title="Select a record"
+          copy="Choose a task, file, communication, or interaction to inspect it without leaving the workstream."
+        />
+      </aside>
+    );
+  const file = record.itemType === "file" || record.kind === "File";
+  const task = record.kind === "Task";
+  return (
+    <aside className="tasking-inspector" aria-label="Selected record details">
+      <header>
+        <span>Selected {file ? "file" : task ? "task" : "record"}</span>
+        <h3>{record.title || record.name}</h3>
+        <p>
+          {record.path ||
+            record.description ||
+            record.summary ||
+            "No description recorded."}
+        </p>
+      </header>
+      <section>
+        <h4>Workstream placement</h4>
+        {workstream ? (
+          <article className="tasking-inspector-placement">
+            <WorkstreamPill workstream={workstream} anchors={anchors} />
+            <strong>{workstream.name}</strong>
+            <small>{workstream.category}</small>
+          </article>
+        ) : (
+          <p>No reviewed workstream placement.</p>
+        )}
+      </section>
+      {file ? (
+        <section>
+          <h4>File metadata</h4>
+          <dl>
+            <div>
+              <dt>Type</dt>
+              <dd>
+                {record.mimeType ||
+                  record.name?.split(".").pop()?.toUpperCase() ||
+                  "Unknown"}
+              </dd>
+            </div>
+            <div>
+              <dt>Size</dt>
+              <dd>{formatTaskingBytes(record.size)}</dd>
+            </div>
+            <div>
+              <dt>Modified</dt>
+              <dd>{formatTaskingDate(record.lastModifiedAt)}</dd>
+            </div>
+            <div>
+              <dt>Review</dt>
+              <dd>{record.parseStatus || record.status || "Observed"}</dd>
+            </div>
+          </dl>
+          <p>
+            {record.summary ||
+              "Read-only source metadata is available without opening or changing the file."}
+          </p>
+        </section>
+      ) : null}
+      {file ? (
+        <section>
+          <h4>Task and communication use</h4>
+          <p>
+            {taskIds.length
+              ? `${taskIds.length} reviewed task relation${taskIds.length === 1 ? "" : "s"}.`
+              : "No task or communication uses this file yet. Workstream placement does not imply a task relationship."}
+          </p>
+        </section>
+      ) : null}
+      {task ? (
+        <section>
+          <h4>Task state</h4>
+          <TaskInspector
+            key={`${record.id}:${record.version}`}
+            task={record}
+            taskState={taskState}
+          />
+        </section>
+      ) : null}
+      <footer>
+        <CircleDot size={14} />
+        <span>{taskState.persistenceLabel}</span>
+      </footer>
+    </aside>
+  );
 }
 
 export default function TaskingWorkspace({ routeHash = "" }) {
-  const routed = routeState(routeHash);
+  const routed = taskingRouteState(routeHash);
   const taskState = useTaskingTasks();
   const workspace = taskState.workspace;
-  const tasks = workspace.tasks;
-  const [query, setQuery] = useState(routed.query);
-  const [workstreamId, setWorkstreamId] = useState(routed.workstreamId);
-  const [status, setStatus] = useState(routed.status);
-  const [fileType, setFileType] = useState(routed.fileType);
-  const [fileRelation, setFileRelation] = useState(routed.fileRelation);
-  const [fileSort, setFileSort] = useState(routed.fileSort);
-  const sourceFolders = useMemo(() => sourceTree(workspace.sourceItems), [workspace.sourceItems]);
-  const folderRoots = useMemo(() => [...workspace.folders, ...sourceFolders], [sourceFolders, workspace.folders]);
-  const flatFolders = useMemo(() => flattenTaskingFolders(folderRoots), [folderRoots]);
-  const fileAnalytics = useMemo(() => buildTaskingFileAnalytics(flatFolders, tasks, workspace.relationships), [flatFolders, tasks, workspace.relationships]);
-  const activeFileType = fileType === "all" || fileAnalytics.types.some((type) => type.id === fileType) ? fileType : "all";
-  const filesById = useMemo(() => new Map(fileAnalytics.files.map((file) => [file.id, file])), [fileAnalytics.files]);
-  const records = useMemo(() => [...workspace.anchors, ...tasks, ...workspace.contextRecords, ...flatFolders.map((entry) => ({ ...(filesById.get(entry.id) || entry), title: entry.name, kind: entry.kind === "folder" ? "Folder" : "File" }))], [filesById, flatFolders, tasks, workspace.anchors, workspace.contextRecords]);
-  const selected = records.find((record) => record.id === routed.recordId) || workspace.anchors[0] || tasks[0] || flatFolders[0] || null;
-  const selectedAnchor = selected?.kind === "Task" ? workspace.anchors.find((anchor) => anchor.id === selected.anchorId) : workspace.anchors.find((anchor) => anchor.id === selected?.id || anchor.id === selected?.recordId || anchor.folderId === selected?.id);
-  const selectedFolder = ["Folder", "File"].includes(selected?.kind) ? selected : flatFolders.find((entry) => entry.id === selectedAnchor?.folderId);
-  const selectedFolderId = ["Folder", "File"].includes(selected?.kind) ? selected.id : selectedFolder?.id;
-  const selectedRelationships = workspace.relationships.filter((relationship) => selected && ([relationship.fromId, relationship.toId].includes(selected.id) || (selectedAnchor && [relationship.fromId, relationship.toId].includes(selectedAnchor.id))));
-  const relatedIds = new Set([
-    ...(selectedAnchor?.connectionIds || []),
-    selected?.recordId,
-    ...selectedRelationships.flatMap((relationship) => [relationship.fromId, relationship.toId]),
-  ].filter(Boolean));
-  relatedIds.delete(selected?.id);
-  if (selected?.kind !== "File") relatedIds.delete(selectedAnchor?.id);
-  const relatedRecords = records.filter((record) => relatedIds.has(record.id)).slice(0, 6);
-  const normalizedQuery = query.trim().toLowerCase();
-  const filteredFiles = sortTaskingFiles(fileAnalytics.files.filter((file) => {
-    const matchesQuery = !normalizedQuery || [file.name, file.path, file.summary, file.mimeType, file.fileType.label, ...file.taskTitles].some((value) => String(value || "").toLowerCase().includes(normalizedQuery));
-    const matchesType = activeFileType === "all" || file.fileType.id === activeFileType;
-    const matchesRelation = fileRelation === "all" || (fileRelation === "task" && file.taskIds.length > 0) || (fileRelation === "workspace" && file.workspaceLinked) || (fileRelation === "unlinked" && !file.workspaceLinked && !file.taskIds.length);
-    return matchesQuery && matchesType && matchesRelation;
-  }), fileSort);
-  const filteredAnchors = workspace.anchors.filter((anchor) => {
-    const anchorTasks = tasks.filter((task) => task.anchorId === anchor.id);
-    const matchesQuery = !normalizedQuery || [anchor.title, anchor.outcome, anchor.nextMove, ...anchorTasks.flatMap((task) => [task.title, task.description])].some((value) => String(value).toLowerCase().includes(normalizedQuery));
-    const matchesWorkstream = workstreamId === "all" || anchor.workstreamId === workstreamId;
-    const matchesStatus = status === "all" || anchor.status === status || anchorTasks.some((task) => task.status === status);
-    return matchesQuery && matchesWorkstream && matchesStatus;
-  });
-  const visibleAnchorIds = new Set(filteredAnchors.map((anchor) => anchor.id));
-  const filteredWorkstreams = workspace.workstreams.filter((workstream) => (workstream.anchors || []).some((anchorId) => visibleAnchorIds.has(anchorId)));
-  const filteredTasks = tasks.filter((task) => visibleAnchorIds.has(task.anchorId) && (status === "all" || task.status === status));
-  const waiting = tasks.filter((task) => task.status === "waiting").length;
-  const review = tasks.filter((task) => task.status === "review").length;
-
-  function selectRecord(recordOrId, preferredView = routed.view) {
-    const record = typeof recordOrId === "string" ? records.find((item) => item.id === recordOrId) : recordOrId;
-    const recordId = record?.id || recordOrId || "";
-    updateTaskingRoute({ taskingView: preferredView, taskingRecord: recordId });
-  }
-
-  function commitFilter(key, value, setter) {
-    setter(value);
-    updateTaskingRoute({ [key]: value, taskingRecord: routed.recordId });
-  }
-
-  function commitFileFilter(key, value) {
-    const setters = { taskingFileType: setFileType, taskingFileRelation: setFileRelation, taskingFileSort: setFileSort };
-    setters[key]?.(value);
-    updateTaskingRoute({ [key]: value, taskingRecord: routed.recordId });
-  }
-
+  const enrichedWorkstreams = useMemo(
+    () =>
+      workspace.workstreams.map((stream) => {
+        const streamAnchors = workspace.anchors.filter(
+          (anchor) => anchor.workstreamId === stream.id,
+        );
+        return {
+          ...stream,
+          shortName: workstreamShortName(stream),
+          category: workstreamCategory(stream, streamAnchors),
+        };
+      }),
+    [workspace.anchors, workspace.workstreams],
+  );
+  const selectedWorkstream =
+    enrichedWorkstreams.find((stream) => stream.id === routed.workstreamId) ||
+    enrichedWorkstreams[0] ||
+    null;
+  const streamAnchors = workspace.anchors.filter(
+    (anchor) => anchor.workstreamId === selectedWorkstream?.id,
+  );
+  const anchorIds = new Set(streamAnchors.map((anchor) => anchor.id));
+  const streamTasks = workspace.tasks.filter((task) =>
+    anchorIds.has(task.anchorId),
+  );
+  const streamCommunications = communicationsForWorkstream(
+    workspace.contextRecords,
+    selectedWorkstream?.id,
+    anchorIds,
+  );
+  const allowedSourceIds = sourceIdsForWorkstream(
+    workspace.sourceItems,
+    workspace.anchors,
+    selectedWorkstream?.id,
+  );
+  const streamFiles = workspace.sourceItems.filter(
+    (item) =>
+      item.itemType === "file" &&
+      (allowedSourceIds?.has(item.id) || anchorIds.has(item.recordId)),
+  );
+  const sourceAnalytics = useMemo(
+    () =>
+      buildTaskingFileAnalytics(
+        workspace.sourceItems.map((item) => ({ ...item, kind: item.itemType })),
+        workspace.tasks,
+        workspace.relationships,
+      ),
+    [workspace.relationships, workspace.sourceItems, workspace.tasks],
+  );
+  const records = useMemo(
+    () =>
+      new Map(
+        [
+          ...workspace.anchors,
+          ...workspace.tasks,
+          ...workspace.contextRecords,
+          ...workspace.sourceItems,
+        ].map((item) => [item.id, item]),
+      ),
+    [workspace],
+  );
+  const streamRecordIds = new Set(
+    [
+      selectedWorkstream?.id,
+      ...anchorIds,
+      ...streamTasks.map((task) => task.id),
+      ...streamFiles.map((file) => file.id),
+      ...streamCommunications.map((record) => record.id),
+    ].filter(Boolean),
+  );
+  const streamRelationships = workspace.relationships.filter(
+    (relationship) =>
+      streamRecordIds.has(relationship.fromId) ||
+      streamRecordIds.has(relationship.toId),
+  );
+  const selectedRecord = records.get(routed.recordId) || null;
+  const selectedAnchor = selectedRecord?.anchorId
+    ? workspace.anchors.find((anchor) => anchor.id === selectedRecord.anchorId)
+    : workspace.anchors.find(
+        (anchor) =>
+          anchor.id === selectedRecord?.recordId ||
+          anchor.id === selectedRecord?.id,
+      );
+  const inspectorWorkstream =
+    enrichedWorkstreams.find(
+      (stream) => stream.id === selectedAnchor?.workstreamId,
+    ) || selectedWorkstream;
+  const selectedFileAnalytics = sourceAnalytics.files.find(
+    (file) => file.id === selectedRecord?.id,
+  );
+  const effectiveRecord = selectedFileAnalytics || selectedRecord;
+  const section =
+    routed.view === "tasks"
+      ? "tasks"
+      : routed.view === "sources"
+        ? "sources"
+        : routed.view === "communications"
+          ? "communications"
+          : routed.section;
   const counts = workspace.metadata?.counts || {};
-  const headerMeta = <span className="tasking-workspace-state"><CircleDot size={14} /><strong>{workspace.metadata?.label || taskState.persistenceLabel}</strong><span>{workspace.metadata?.coverage}</span></span>;
-  return <section className="tasking-workspace" data-tasking-workspace data-tasking-view={routed.view}>
-    <ControlWorkbenchHeader eyebrow="Workspace work" title="Tasking" summary="See where work lives, how it clusters into workstreams, what is connected, and what needs movement next." meta={headerMeta} metrics={[
-      { id: "workstreams", label: "Workstreams", value: workspace.workstreams.length, meta: "One primary placement per task" },
-      { id: "active", label: "Open work", value: tasks.filter((task) => OPEN_STATUSES.has(task.status)).length, meta: `${tasks.filter((task) => task.status === "draft").length} drafts`, tone: "info" },
-      { id: "sources", label: "Source items", value: counts.sourceItems ?? workspace.sourceItems.length, meta: `${fileAnalytics.reviewedFiles} reviewed ${fileAnalytics.reviewedFiles === 1 ? "file" : "files"}` },
-      { id: "linked", label: "Linked sources", value: counts.linkedSourceItems ?? workspace.sourceItems.filter((item) => item.recordId).length, meta: "Connected to workspace records", tone: counts.linkedSourceItems ? "success" : "warning" },
-      { id: "review", label: "Needs attention", value: waiting + review, meta: `${waiting} waiting · ${review} in review`, tone: waiting + review ? "warning" : "success" },
-    ]} metricLabel="Tasking workspace summary" />
-    <ControlPageBody compact>
-      <section className="tasking-scope" aria-label="Tasking scope controls">
-        <label className="tasking-search"><Search size={15} aria-hidden="true" /><span className="sr-only">Search Tasking</span><input value={query} onChange={(event) => setQuery(event.target.value)} onBlur={() => updateTaskingRoute({ taskingQuery: query })} onKeyDown={(event) => { if (event.key === "Enter") updateTaskingRoute({ taskingQuery: query }); }} placeholder="Search work, source names, paths, and context…" /></label>
-        {routed.view === "files" ? <>
-          <ControlSelect compact ariaLabel="File type" value={activeFileType} options={[["all", "All file types"], ...fileAnalytics.types.map((type) => [type.id, type.label])]} onChange={(value) => commitFileFilter("taskingFileType", value)} />
-          <ControlSelect compact ariaLabel="Task relation" value={fileRelation} options={[["all", "All task relations"], ["task", "Related to tasks"], ["workspace", "Workspace linked"], ["unlinked", "Unlinked"]]} onChange={(value) => commitFileFilter("taskingFileRelation", value)} />
-        </> : <>
-          <ControlSelect compact ariaLabel="Workstream" value={workstreamId} options={[["all", "All workstreams"], ...workspace.workstreams.map((item) => [item.id, item.name])]} onChange={(value) => commitFilter("taskingWorkstream", value, setWorkstreamId)} />
-          <ControlSelect compact ariaLabel="Status" value={status} options={[["all", "All states"], ...TASKING_TASK_STATUSES.map((value) => [value, taskStatusLabel(value)])]} onChange={(value) => commitFilter("taskingStatus", value, setStatus)} />
-        </>}
-        <span className="tasking-scope__result"><ListFilter size={14} />{routed.view === "files" ? `${filteredFiles.length} of ${fileAnalytics.totalFiles} files` : `${filteredAnchors.length} anchors · ${filteredTasks.length} tasks`}</span>
-      </section>
-      <div className="tasking-schema-rule"><strong>Projection:</strong><span>Workstream</span><ChevronRight size={12} /><span>Pursuit, Account, File, or Goal anchor</span><ChevronRight size={12} /><span>Task</span><small>Connections add context without duplicating work.</small></div>
-      <div className="tasking-layout">
-        <FolderTree folders={folderRoots} selectedId={selectedFolderId} itemCount={workspace.sourceItems.length} onSelect={(node) => selectRecord(node, node.kind === "file" ? "files" : routed.view)} />
-        <main className="tasking-primary">
-          {routed.view === "portfolio" ? <PortfolioView workstreams={filteredWorkstreams} anchors={filteredAnchors} tasks={filteredTasks} selectedId={selected?.id} onSelect={selectRecord} /> : null}
-          {routed.view === "files" ? <Suspense fallback={<div className="tasking-empty"><FileText size={20} /><strong>Loading file intelligence</strong></div>}><TaskingFileView analytics={fileAnalytics} files={filteredFiles} selectedId={selectedFolderId} fileType={activeFileType} fileSort={fileSort} onFilter={commitFileFilter} onSelect={(node) => selectRecord(node, "files")} /></Suspense> : null}
-          {routed.view === "connections" ? <ConnectionsView records={records} relationships={workspace.relationships} selectedId={selected?.id} onSelect={(id) => selectRecord(id, "connections")} /> : null}
-          {!filteredAnchors.length && routed.view === "portfolio" ? <div className="tasking-empty"><AlertTriangle size={20} /><strong>No work matches this scope</strong><span>Clear search or filters to restore the portfolio.</span></div> : null}
-        </main>
-        <ContextPanel record={selected} anchor={selectedAnchor} folder={selectedFolder} relatedRecords={relatedRecords} relationshipRows={selectedRelationships} workstreams={workspace.workstreams} onSelect={selectRecord} taskState={taskState} />
-      </div>
-      <footer className="tasking-boundary"><CheckCircle2 size={15} /><span><strong>Persistence boundary</strong> Tasking state is workspace-scoped and versioned. Codex reads the local source tree; this workspace stores only normalized metadata and reviewed tasking.</span>{selected ? <a href={recordHref(selected.id, "connections")}>Inspect connections <ArrowRight size={13} /></a> : null}</footer>
-    </ControlPageBody>
-  </section>;
+
+  function chooseWorkstream(id) {
+    replaceTaskingRoute({
+      taskingView: "workstreams",
+      taskingWorkstream: id,
+      taskingSection: "overview",
+      taskingRecord: "",
+    });
+  }
+  function chooseSection(next) {
+    replaceTaskingRoute({
+      taskingView: "workstreams",
+      taskingWorkstream: selectedWorkstream?.id,
+      taskingSection: next,
+    });
+  }
+  function selectRecord(id) {
+    replaceTaskingRoute({
+      taskingWorkstream: selectedWorkstream?.id,
+      taskingRecord: id,
+    });
+  }
+
+  const headerMeta = (
+    <span className="tasking-workspace-state">
+      <CircleDot size={14} />
+      <strong>{workspace.metadata?.label || taskState.persistenceLabel}</strong>
+      <span>{workspace.metadata?.coverage}</span>
+    </span>
+  );
+  return (
+    <section
+      className="tasking-workspace"
+      data-tasking-workspace
+      data-tasking-view={routed.view}
+    >
+      <ControlWorkbenchHeader
+        eyebrow="Workspace operations"
+        title="Tasking"
+        summary="Move workstreams forward with tasks, source material, communications, and reviewed interactions in one operating context."
+        meta={headerMeta}
+        metrics={[
+          {
+            id: "workstreams",
+            label: "Workstreams",
+            value: enrichedWorkstreams.length,
+            meta: "Primary operating units",
+          },
+          {
+            id: "open",
+            label: "Open tasks",
+            value: workspace.tasks.filter((task) =>
+              OPEN_STATUSES.has(task.status),
+            ).length,
+            meta: `${workspace.tasks.filter((task) => task.status === "draft").length} drafts`,
+            tone: "info",
+          },
+          {
+            id: "sources",
+            label: "Sources",
+            value: counts.sourceItems ?? workspace.sourceItems.length,
+            meta: `${sourceAnalytics.totalFiles} files`,
+          },
+          {
+            id: "messages",
+            label: "Messages",
+            value: workspace.contextRecords.filter(isCommunication).length,
+            meta: "Email, IM, meetings",
+          },
+        ]}
+        metricLabel="Tasking workspace summary"
+      />
+      <ControlPageBody compact>
+        <div className="tasking-operating-shell">
+          <WorkstreamRail
+            workstreams={enrichedWorkstreams}
+            anchors={workspace.anchors}
+            tasks={workspace.tasks}
+            communications={workspace.contextRecords}
+            sourceItems={workspace.sourceItems}
+            selectedId={selectedWorkstream?.id}
+            onSelect={chooseWorkstream}
+          />
+          <main className="tasking-workstream-main">
+            {selectedWorkstream ? (
+              <>
+                <header className="tasking-workstream-head">
+                  <div>
+                    <span className="tasking-workstream-head__title">
+                      <WorkstreamPill
+                        workstream={selectedWorkstream}
+                        anchors={streamAnchors}
+                      />
+                      <h2>{selectedWorkstream.name}</h2>
+                      <i>{selectedWorkstream.category}</i>
+                    </span>
+                    <p>
+                      {selectedWorkstream.description ||
+                        "No workstream description recorded."}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    className="if-btn if-btn--primary if-btn--sm"
+                    onClick={() => chooseSection("tasks")}
+                  >
+                    <Plus size={14} />
+                    Create task
+                  </button>
+                </header>
+                <nav
+                  className="tasking-workstream-tabs"
+                  aria-label="Selected workstream"
+                >
+                  <button
+                    type="button"
+                    aria-selected={section === "overview"}
+                    onClick={() => chooseSection("overview")}
+                  >
+                    Overview
+                  </button>
+                  <button
+                    type="button"
+                    aria-selected={section === "tasks"}
+                    onClick={() => chooseSection("tasks")}
+                  >
+                    Tasks <span>{streamTasks.length}</span>
+                  </button>
+                  <button
+                    type="button"
+                    aria-selected={section === "sources"}
+                    onClick={() => chooseSection("sources")}
+                  >
+                    Sources <span>{streamFiles.length}</span>
+                  </button>
+                  <button
+                    type="button"
+                    aria-selected={section === "communications"}
+                    onClick={() => chooseSection("communications")}
+                  >
+                    Communications <span>{streamCommunications.length}</span>
+                  </button>
+                  <button
+                    type="button"
+                    aria-selected={section === "interactions"}
+                    onClick={() => chooseSection("interactions")}
+                  >
+                    Interactions <span>{streamRelationships.length}</span>
+                  </button>
+                </nav>
+                <div className="tasking-workstream-view">
+                  {section === "overview" ? (
+                    <Overview
+                      workstream={selectedWorkstream}
+                      anchors={streamAnchors}
+                      tasks={streamTasks}
+                      files={streamFiles}
+                      communications={streamCommunications}
+                      onSection={chooseSection}
+                      onSelect={selectRecord}
+                      canWrite={taskState.canWrite}
+                    />
+                  ) : null}
+                  {section === "tasks" ? (
+                    <TasksView
+                      tasks={streamTasks}
+                      anchors={streamAnchors}
+                      selectedId={routed.recordId}
+                      onSelect={selectRecord}
+                      onCreate={taskState.createTask}
+                      canWrite={taskState.canWrite}
+                    />
+                  ) : null}
+                  {section === "sources" ? (
+                    <Suspense
+                      fallback={
+                        <EmptyState
+                          icon={FileText}
+                          title="Loading source structure"
+                          copy="Preparing the stable file hierarchy."
+                        />
+                      }
+                    >
+                      <TaskingSourceExplorer
+                        sourceItems={workspace.sourceItems}
+                        anchors={workspace.anchors}
+                        workstreams={enrichedWorkstreams}
+                        selectedId={routed.recordId}
+                        onSelect={(item) => selectRecord(item.id)}
+                      />
+                    </Suspense>
+                  ) : null}
+                  {section === "communications" ? (
+                    <CommunicationsView records={streamCommunications} />
+                  ) : null}
+                  {section === "interactions" ? (
+                    <InteractionsView
+                      relationships={streamRelationships}
+                      records={records}
+                      onSelect={selectRecord}
+                      onSources={() => chooseSection("sources")}
+                    />
+                  ) : null}
+                </div>
+              </>
+            ) : (
+              <EmptyState
+                icon={LayoutList}
+                title="No workstreams yet"
+                copy="Create a workstream through the Tasking Agent API to establish the primary operating unit for tasks, files, and communications."
+              />
+            )}
+          </main>
+          <Inspector
+            key={effectiveRecord?.id || "empty"}
+            record={effectiveRecord}
+            workstream={inspectorWorkstream}
+            anchors={streamAnchors}
+            taskState={taskState}
+            taskIds={selectedFileAnalytics?.taskIds || []}
+          />
+        </div>
+        <footer className="tasking-boundary">
+          <CheckCircle2 size={15} />
+          <span>
+            <strong>Workspace boundary</strong> Tasking stores reviewed metadata
+            and relationships. Local source files remain read only and
+            communications connectors remain separate.
+          </span>
+        </footer>
+      </ControlPageBody>
+    </section>
+  );
 }

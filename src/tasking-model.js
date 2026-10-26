@@ -16,17 +16,26 @@ export function taskingTaskFromRow(row) {
   if (!row) return null;
   const taskId = cleanText(row.taskId ?? row.task_id, 120);
   const foundation = taskingFoundationTask(taskId);
-  if (!foundation) return null;
+  if (!taskId) return null;
   const persistedStatus = cleanText(row.status, 40);
-  const status = STATUS_SET.has(persistedStatus) ? persistedStatus : foundation.status;
-  const owner = cleanText(row.owner ?? foundation.owner, 100);
+  const status = STATUS_SET.has(persistedStatus) ? persistedStatus : foundation?.status || "draft";
+  const owner = cleanText(row.owner ?? foundation?.owner, 100);
+  const title = cleanText(row.title ?? foundation?.title, 160);
+  const description = cleanText(row.description ?? foundation?.description, 1_200);
+  const acceptance = cleanText(row.acceptance ?? foundation?.acceptance, 500);
+  if (!title || !description || !acceptance || !cleanText(row.anchorId ?? foundation?.anchorId, 120)) return null;
   return {
     taskId,
-    title: cleanText(row.title ?? foundation.title, 160) || foundation.title,
-    description: cleanText(row.description ?? foundation.description, 1_200) || foundation.description,
+    id: taskId,
+    kind: "Task",
+    title,
+    description,
     status,
-    owner: taskingTaskOwnerRequired(status) ? owner || foundation.owner : owner,
-    acceptance: cleanText(row.acceptance ?? foundation.acceptance, 500) || foundation.acceptance,
+    owner: taskingTaskOwnerRequired(status) ? owner || foundation?.owner || "" : owner,
+    acceptance,
+    anchorId: cleanText(row.anchorId ?? foundation?.anchorId, 120),
+    evidenceCount: Math.max(0, Number(row.evidenceCount ?? foundation?.evidenceCount) || 0),
+    dependencyCount: Math.max(0, Number(row.dependencyCount ?? foundation?.dependencyCount) || 0),
     version: Math.max(1, Number(row.version) || 1),
     updatedAt: row.updatedAt ?? row.updated_at ?? null,
     updatedBy: cleanText(row.updatedBy ?? row.updated_by, 120),
@@ -56,8 +65,10 @@ export function taskingTaskMutation(taskId, body = {}, current = null) {
 
 export function mergeTaskingTasks(overrides = []) {
   const byId = new Map((Array.isArray(overrides) ? overrides : []).map(taskingTaskFromRow).filter(Boolean).map((task) => [task.taskId, task]));
-  return TASKING_FOUNDATION.tasks.map((task) => {
+  const foundation = TASKING_FOUNDATION.tasks.map((task) => {
     const override = byId.get(task.id);
     return override ? { ...task, ...override, id: task.id, persisted: true } : { ...task, version: 0, persisted: false };
   });
+  const foundationIds = new Set(foundation.map((task) => task.id));
+  return [...foundation, ...[...byId.values()].filter((task) => !foundationIds.has(task.id)).map((task) => ({ ...task, persisted: true }))];
 }
