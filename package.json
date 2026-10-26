@@ -69,7 +69,7 @@
     "verify:strategic-analysis": "node scripts/verify-strategic-analysis.mjs",
     "verify:security": "node scripts/verify-security-runtime.mjs",
     "verify:site": "node scripts/verify-site.mjs",
-    "verify:tasking": "node scripts/verify-tasking-state.mjs && node scripts/verify-tasking-draft-payloads.mjs && node scripts/verify-tasking-foundation.mjs",
+    "verify:tasking": "node scripts/verify-tasking-state.mjs && node scripts/verify-tasking-draft-payloads.mjs && node scripts/verify-tasking-foundation.mjs && node scripts/verify-tasking-fallback.mjs",
     "verify": "npm run lint && npm run verify:ui-conformance && npm run verify:navigation-architecture && npm run verify:ux-consolidation && npm run verify:ui-exceptions && npm run verify:event-ai && npm run verify:record-linking && npm run verify:record-research && npm run verify:interaction-foundation && npm run verify:cross-surface && npm run verify:event-catalog && npm run verify:procurement-discovery && npm run verify:acquisition-scheduler && npm run verify:acquisition-delivery && npm run verify:acquisition-portfolio && npm run verify:registration && npm run verify:saas-control-plane && npm run verify:agent-operations && npm run verify:d1-efficiency && npm run verify:cyber && npm run verify:data-coverage && npm run build && npm run verify:architecture-v2 && npm run verify:intelligence-graph && npm run verify:money-path && npm run verify:strategic-analysis && npm run verify:security && npm run verify:ui-consistency && npm run verify:site",
     "verify:auth": "node scripts/verify-auth.mjs",
     "verify:pages-auth": "npm run build:cloudflare && node scripts/verify-pages-auth.mjs",

@@ -1,5 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAuth } from "./AuthContext.jsx";
+import {
+  TASKING_FALLBACK_WORKSPACE,
+  taskingFallbackEligible,
+} from "./tasking-fallback-data.js";
 import { TASKING_FOUNDATION } from "./tasking-foundation-data.js";
 import { mergeTaskingTasks, taskingTaskFromRow } from "./tasking-model.js";
 
@@ -41,7 +45,11 @@ async function request(path = "", options = {}) {
       new Error(
         payload.error?.message || payload.error || "Task update failed.",
       ),
-      { code: payload.error?.code || payload.code, task: payload.task },
+      {
+        code: payload.error?.code || payload.code,
+        status: response.status,
+        task: payload.task,
+      },
     );
   return payload?.data ?? payload;
 }
@@ -61,17 +69,48 @@ export function useTaskingTasks() {
   }));
   const [savingTaskId, setSavingTaskId] = useState("");
   const [notice, setNotice] = useState("");
-  const canWrite = Boolean(!remote || auth?.user?.canWriteWorkspace);
+  const [connectionState, setConnectionState] = useState(
+    remote ? "loading" : "local",
+  );
+  const [connectionError, setConnectionError] = useState("");
+  const fallback = connectionState === "fallback" || connectionState === "retrying";
+  const canWrite = Boolean(
+    !fallback && (!remote || auth?.user?.canWriteWorkspace),
+  );
 
   const refresh = useCallback(async () => {
     if (!remote) {
       const local = readLocal(workspaceId);
       setOverrides(local);
       setWorkspace({ ...TASKING_FOUNDATION, tasks: mergeTaskingTasks(local) });
+      setConnectionState("local");
+      setConnectionError("");
       return;
     }
-    const payload = await request();
-    setWorkspace(payload || TASKING_FOUNDATION);
+    setConnectionState((current) =>
+      current === "fallback" || current === "retrying" ? "retrying" : "loading",
+    );
+    try {
+      const payload = await request();
+      setWorkspace(payload || TASKING_FOUNDATION);
+      setConnectionState("live");
+      setConnectionError("");
+      setNotice("");
+    } catch (error) {
+      setConnectionError(error.message);
+      if (taskingFallbackEligible(error)) {
+        setWorkspace(TASKING_FALLBACK_WORKSPACE);
+        setConnectionState("fallback");
+        setNotice(
+          "Live Tasking is temporarily unavailable. Showing a read-only template workspace.",
+        );
+      } else {
+        setWorkspace(TASKING_FOUNDATION);
+        setConnectionState("error");
+        setNotice(error.message);
+      }
+      throw error;
+    }
   }, [remote, workspaceId]);
 
   useEffect(() => {
@@ -91,6 +130,7 @@ export function useTaskingTasks() {
 
   const saveTask = useCallback(
     async (taskId, values) => {
+      if (fallback) throw new Error("Template preview is read only.");
       const current = overrides.find((task) => task.taskId === taskId);
       setSavingTaskId(taskId);
       setNotice("");
@@ -134,11 +174,12 @@ export function useTaskingTasks() {
         setSavingTaskId("");
       }
     },
-    [overrides, refresh, remote, workspace.tasks, workspaceId],
+    [fallback, overrides, refresh, remote, workspace.tasks, workspaceId],
   );
 
   const createTask = useCallback(
     async (values) => {
+      if (fallback) throw new Error("Template preview is read only.");
       const taskId = `task-${globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(16).slice(2)}`}`;
       setSavingTaskId(taskId);
       setNotice("");
@@ -182,11 +223,12 @@ export function useTaskingTasks() {
         setSavingTaskId("");
       }
     },
-    [overrides, remote, workspaceId],
+    [fallback, overrides, remote, workspaceId],
   );
 
   const resetTask = useCallback(
     async (taskId) => {
+      if (fallback) throw new Error("Template preview is read only.");
       const current = remote
         ? workspace.tasks.find((task) => task.id === taskId)
         : overrides.find((task) => task.taskId === taskId);
@@ -217,7 +259,7 @@ export function useTaskingTasks() {
         setSavingTaskId("");
       }
     },
-    [overrides, refresh, remote, workspace.tasks, workspaceId],
+    [fallback, overrides, refresh, remote, workspace.tasks, workspaceId],
   );
 
   return {
@@ -233,13 +275,20 @@ export function useTaskingTasks() {
       [overrides, remote, workspace],
     ),
     canWrite,
+    connectionError,
+    connectionState,
+    isFallback: fallback,
+    isLoading: connectionState === "loading",
     persistenceLabel: remote
-      ? workspace.sourceItems?.length
+      ? fallback
+        ? "Template preview · read only"
+        : workspace.sourceItems?.length
         ? "Workspace + source metadata"
         : "Workspace persisted"
       : "Local preview",
     savingTaskId,
     notice,
+    refresh,
     createTask,
     saveTask,
     resetTask,
