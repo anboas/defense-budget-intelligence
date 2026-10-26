@@ -3202,7 +3202,7 @@ async function agentApiResponse(request, env, db) {
     } else if (await rateLimited(db, principal)) {
       response = agentError("rate_limited", `Limit is ${AGENT_RATE_LIMIT} requests per minute`, 429, requestId);
     } else if (resource === "capabilities" && request.method === "GET") response = agentJson({
-      principal, scopes: principal.scopes, rateLimitPerMinute: AGENT_RATE_LIMIT, contractVersion: "1.2.0",
+      principal, scopes: principal.scopes, rateLimitPerMinute: AGENT_RATE_LIMIT, contractVersion: "1.2.1",
       resources: [
         "records", "analytics", "tracking", "record-dispositions", "record-groups", "record-intelligence", "events", "event-catalog", "event-categories",
         "activity", "api-requests", "integrations", "tasking", ...AGENT_INTELLIGENCE_RESOURCES,

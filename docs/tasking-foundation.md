@@ -22,7 +22,7 @@ The committed data is synthetic and explicitly labeled. It proves:
 5. accessible list fallback for the visual relationship map;
 6. desktop and mobile containment on the exact production build.
 
-Task fields now persist per workspace with optimistic versioning, RBAC, audit activity, reset-to-foundation behavior, and a browser-local static-host fallback. Agent API `1.2.0` adds scoped Tasking CRUD for tasks, workstreams, anchors, context records, and relationships, plus idempotent normalized OneDrive source-item synchronization.
+Task fields now persist per workspace with optimistic versioning, RBAC, audit activity, reset-to-foundation behavior, and a browser-local static-host fallback. Agent API `1.2.1` adds native draft tasks with optional owners while draft, scoped Tasking CRUD for tasks, workstreams, anchors, context records, and relationships, plus idempotent normalized OneDrive source-item synchronization.
 
 The application does not hold Microsoft Graph credentials or call OneDrive directly. Codex owns that connector boundary and sends only normalized metadata and credential-free links through the Agent API. Signed-in Tasking reads that workspace projection directly, so agent-created workstreams, anchors, tasks, relationships, and normalized OneDrive folders/files appear in the same operating surface. The static-host fallback remains synthetic and browser-local.
 

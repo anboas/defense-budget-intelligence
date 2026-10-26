@@ -1,6 +1,6 @@
 # Agent API
 
-The Cloudflare Pages deployment exposes Agent API contract `1.2.0` at `/api/v1/agent`. It is designed for trusted automation clients and signed-in workspace users with role-derived scopes. The API combines the immutable published intelligence graph with cited, reviewable workspace overlays and a mutable workspace Tasking control plane.
+The Cloudflare Pages deployment exposes Agent API contract `1.2.1` at `/api/v1/agent`. It is designed for trusted automation clients and signed-in workspace users with role-derived scopes. The API combines the immutable published intelligence graph with cited, reviewable workspace overlays and a mutable workspace Tasking control plane.
 
 ## Authentication
 
@@ -93,6 +93,8 @@ Every server-side mutation writes an append-only actor/action/entity audit row. 
 - `GET`, `PUT`, `DELETE /api/v1/agent/tasking/source-items/{sourceItemId}`
 
 The root read returns one complete workspace projection: foundation and workspace workstreams, anchors, tasks, context records, relationships, plus normalized source items. Records are typed as `workstream`, `anchor`, or `context`. Task and relationship writes use stable caller-provided IDs. Create and synchronization calls require `Idempotency-Key`; updates and deletes require the current integer version through `If-Match`.
+
+Task status is one of `draft`, `ready`, `in-progress`, `waiting`, `review`, `blocked`, or `completed`. A draft may keep `owner` blank while assignment, timing, and approval remain unconfirmed. Every non-draft task requires an owner. The API never promotes a draft to Ready, invents an owner or date, or removes source references and approval conditions from accepted task text.
 
 Codex owns OneDrive discovery, traversal, delta handling, and content interpretation. It sends only normalized item metadata to Tasking. A source item includes a stable API ID, provider `onedrive`, provider `sourceId`, file or folder `itemType`, name, path, optional drive/item/parent IDs, MIME type, byte size, ETag, last-modified time, parse state, summary, credential-free HTTPS `webUrl`, and optional Tasking `recordId`. Batches accept 1 to 50 items. Reusing an idempotency key with the same payload replays the stored result; reusing it with different content returns a conflict.
 

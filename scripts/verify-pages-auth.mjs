@@ -220,6 +220,15 @@ async function verifyApiLifecycle(persistPath) {
     assert.equal((await response.json()).tasks[0].status, "completed", "D1 Tasking reads must return the persisted workspace override");
     response = await apiRequest(baseUrl, "/api/v1/auth/tasking/task-solution-owner?version=1", { method: "DELETE", cookie: ownerCookie, origin: baseUrl.slice(0, -1) });
     assert.equal(response.status, 204, "D1 Tasking reset must remove the persisted override at the expected version");
+    response = await apiRequest(baseUrl, "/api/v1/auth/tasking/task-solution-owner", { method: "PATCH", cookie: ownerCookie, origin: baseUrl.slice(0, -1), body: { version: 0, status: "draft", owner: "", acceptance: "Approval remains required before execution" } });
+    assert.equal(response.status, 200, "D1 Tasking must accept a native draft without an owner");
+    body = await response.json();
+    assert.equal(body.task.status, "draft");
+    assert.equal(body.task.owner, "", "D1 Tasking must not substitute the foundation owner for a draft");
+    response = await apiRequest(baseUrl, "/api/v1/auth/tasking/task-solution-owner", { method: "PATCH", cookie: ownerCookie, origin: baseUrl.slice(0, -1), body: { version: 1, status: "ready", owner: "" } });
+    assert.equal(response.status, 400, "D1 Tasking must require an owner before a draft becomes Ready");
+    response = await apiRequest(baseUrl, "/api/v1/auth/tasking/task-solution-owner?version=1", { method: "DELETE", cookie: ownerCookie, origin: baseUrl.slice(0, -1) });
+    assert.equal(response.status, 204, "D1 Tasking draft cleanup must preserve optimistic versioning");
 
     response = await apiRequest(baseUrl, "/api/v1/auth/control-plane", { cookie: ownerCookie });
     assert.equal(response.status, 200, "D1 Super users must be able to inspect the SaaS control plane");

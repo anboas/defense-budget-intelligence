@@ -112,6 +112,16 @@ async function verifyTaskingBrowser(baseUrl, cookie) {
     assert.equal(await page.locator(".tasking-lane").count(), 5, "Signed-in Tasking must render the agent-created workstream");
     await page.getByText("OneDrive", { exact: true }).first().waitFor();
     await page.getByText("Index OneDrive", { exact: true }).waitFor();
+    const draftRow = page.locator(".tasking-task-row").filter({ hasText: "Review unconfirmed source action" });
+    await draftRow.getByText("Draft", { exact: true }).waitFor();
+    await draftRow.getByText(/No owner · 1 evidence/).waitFor();
+    await draftRow.click();
+    await page.locator("[data-tasking-task-editor]").waitFor();
+    assert.equal(await page.locator("[data-tasking-owner-input]").inputValue(), "", "Draft editor must preserve a blank owner");
+    assert.equal(await page.getByRole("button", { name: "Save task" }).isEnabled(), true, "Draft Save must remain enabled with a blank owner and acceptance criteria");
+    await page.goto(new URL("#/tasking?taskingView=portfolio&taskingStatus=draft", baseUrl).toString(), { waitUntil: "domcontentloaded" });
+    await page.getByText("Review unconfirmed source action", { exact: true }).waitFor();
+    assert.equal(await page.locator(".tasking-task-row").count(), 1, "Draft status filter must isolate draft tasks");
     await page.locator('[data-workspace-view="files"]').click();
     await page.locator(".tasking-file-table").getByText("Capture brief.docx", { exact: true }).waitFor();
     const width = await page.evaluate(() => ({ viewport: window.innerWidth, scroll: document.documentElement.scrollWidth }));
@@ -170,7 +180,7 @@ try {
   result = await body(await request(instance.baseUrl, "/api/v1/agent/capabilities", { token: agentToken }));
   assert.equal(result.response.status, 200);
   assert.equal(result.payload.apiVersion, "dbi-agent-v1");
-  assert.equal(result.payload.data.contractVersion, "1.2.0");
+  assert.equal(result.payload.data.contractVersion, "1.2.1");
   assert.deepEqual(result.payload.data.resources, [
     "records", "analytics", "tracking", "record-dispositions", "record-groups", "record-intelligence", "events", "event-catalog", "event-categories", "activity", "api-requests", "integrations", "tasking",
     "graph", "entities", "activities", "locations", "evidence", "sources", "enrichment", "reviews", "jobs",
@@ -179,7 +189,9 @@ try {
   result = await body(await request(instance.baseUrl, "/api/v1/agent/openapi.json", { token: agentToken }));
   assert.equal(result.response.status, 200);
   assert.equal(result.payload.openapi, "3.1.0");
-  assert.equal(result.payload.info.version, "1.2.0");
+  assert.equal(result.payload.info.version, "1.2.1");
+  assert.deepEqual(result.payload.components.schemas.TaskingTaskStatus.enum, ["draft", "ready", "in-progress", "waiting", "review", "blocked", "completed"]);
+  assert.match(result.payload.components.schemas.TaskingTaskCreate.properties.owner.description, /blank only while status is draft/i);
   assert.ok(result.payload.paths["/api/v1/agent/record-dispositions/{recordId}"], "Agent OpenAPI must document workspace tombstone and restore operations");
   assert.ok(result.payload.paths["/api/v1/agent/record-groups"], "Agent OpenAPI must document lifecycle grouping operations");
   assert.ok(result.payload.paths["/api/v1/agent/record-intelligence/{recordId}"], "Agent OpenAPI must document record research and relationship reads");
@@ -208,12 +220,19 @@ try {
 
   result = await body(await request(instance.baseUrl, "/api/v1/agent/tasking/tasks", {
     method: "POST", token: agentToken, headers: { "idempotency-key": "tasking-create-1" },
-    body: { id: "task-agent-created", title: "Index OneDrive", description: "Normalize OneDrive item metadata.", status: "ready", owner: "Codex", acceptance: "Source items are queryable", anchorId: "anchor-file" },
+    body: { id: "task-agent-created", title: "Index OneDrive", description: "Normalize OneDrive item metadata.", status: "draft", owner: "", acceptance: "Source items are queryable after review", anchorId: "anchor-file" },
   }));
   assert.equal(result.response.status, 201);
   assert.equal(result.payload.data.version, 1);
+  assert.equal(result.payload.data.status, "draft");
+  assert.equal(result.payload.data.owner, "", "Agent-created drafts must preserve a blank owner");
   result = await body(await request(instance.baseUrl, "/api/v1/agent/tasking/tasks/task-agent-created", {
-    method: "PATCH", token: agentToken, headers: { "if-match": "1" }, body: { status: "in-progress" },
+    method: "PATCH", token: agentToken, headers: { "if-match": "1" }, body: { status: "ready" },
+  }));
+  assert.equal(result.response.status, 400, "Promoting a draft without assigning an owner must fail closed");
+  assert.match(result.payload.error.message, /owner is required unless status is draft/i);
+  result = await body(await request(instance.baseUrl, "/api/v1/agent/tasking/tasks/task-agent-created", {
+    method: "PATCH", token: agentToken, headers: { "if-match": "1" }, body: { status: "in-progress", owner: "Codex" },
   }));
   assert.equal(result.response.status, 200);
   assert.equal(result.payload.data.version, 2);
@@ -221,6 +240,17 @@ try {
     method: "PATCH", token: agentToken, headers: { "if-match": "1" }, body: { status: "completed" },
   }));
   assert.equal(result.response.status, 409, "Tasking updates must reject stale versions");
+
+  const draftDescription = "Source reference: retained local document. Timing (unconfirmed): Not stated. Draft creation does not approve execution.";
+  const draftAcceptance = "Confirm owner, date, and permission to proceed while retaining supporting evidence.";
+  result = await body(await request(instance.baseUrl, "/api/v1/agent/tasking/tasks", {
+    method: "POST", token: agentToken, headers: { "idempotency-key": "tasking-draft-create-1" },
+    body: { id: "task-agent-draft", title: "Review unconfirmed source action", description: draftDescription, status: "draft", owner: "", acceptance: draftAcceptance, anchorId: "anchor-file", evidenceCount: 1 },
+  }));
+  assert.equal(result.response.status, 201);
+  assert.equal(result.payload.data.description, draftDescription, "Draft creation must preserve source references and unconfirmed timing");
+  assert.equal(result.payload.data.acceptance, draftAcceptance, "Draft creation must preserve approval conditions");
+  assert.equal(result.payload.data.owner, "");
 
   result = await body(await request(instance.baseUrl, "/api/v1/agent/tasking/records", {
     method: "POST", token: agentToken, headers: { "idempotency-key": "tasking-workstream-1" },
@@ -728,6 +758,7 @@ try {
   const restartToken = result.payload.token;
   result = await body(await request(instance.baseUrl, "/api/v1/agent/tasking", { token: restartToken }));
   assert.ok(result.payload.data.tasks.some((entry) => entry.id === "task-agent-created" && entry.version === 2), "Tasking task state must survive restart");
+  assert.ok(result.payload.data.tasks.some((entry) => entry.id === "task-agent-draft" && entry.status === "draft" && entry.owner === ""), "Blank-owner draft state must survive restart");
   assert.ok(result.payload.data.workstreams.some((entry) => entry.id === "workstream-onedrive"), "Tasking workstreams must survive restart");
   assert.ok(result.payload.data.relationships.some((entry) => entry.id === "relationship-onedrive-file"), "Tasking relationships must survive restart");
   assert.equal(result.payload.data.sourceItems.length, 2, "Normalized OneDrive metadata must survive restart");
@@ -748,7 +779,7 @@ try {
   result = await body(await request(instance.baseUrl, "/api/v1/agent/capabilities", { token: restartToken }));
   assert.equal(result.response.status, 401, "Revoked agent credentials must fail immediately");
 
-  console.log("Verified Agent API 1.2 discovery, Tasking CRUD, normalized OneDrive synchronization, graph traversal, cited proposals, separate review/publish scopes, atomic workspace overlays, evidence/source reads, redacted request logging, manual-record CRUD, shared tracking/events, stable-ID integrity, CSRF protection, audit activity, idempotency, version conflicts, restart persistence, and revocation");
+  console.log("Verified Agent API 1.2.1 discovery, native draft Tasking CRUD, normalized OneDrive synchronization, graph traversal, cited proposals, separate review/publish scopes, atomic workspace overlays, evidence/source reads, redacted request logging, manual-record CRUD, shared tracking/events, stable-ID integrity, CSRF protection, audit activity, idempotency, version conflicts, restart persistence, and revocation");
 } finally {
   await stopPages(instance);
   rmSync(persistPath, { recursive: true, force: true });

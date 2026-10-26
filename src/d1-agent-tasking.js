@@ -1,5 +1,5 @@
 import { TASKING_FOUNDATION } from "./tasking-foundation-data.js";
-import { mergeTaskingTasks, taskingFoundationTask, taskingTaskFromRow, taskingTaskMutation } from "./tasking-model.js";
+import { mergeTaskingTasks, TASKING_TASK_STATUSES, taskingFoundationTask, taskingTaskFromRow, taskingTaskMutation, taskingTaskOwnerRequired } from "./tasking-model.js";
 import { cleanText } from "./security-policy.js";
 
 export const TASKING_AGENT_SCOPES = Object.freeze(["tasking:read", "tasking:write"]);
@@ -78,9 +78,9 @@ function objectFromRow(row) {
   };
 }
 
-function normalizeTask(body = {}, current = null) {
+export function normalizeTaskingTask(body = {}, current = null) {
   const status = cleanText(body.status ?? current?.status ?? "ready", 40);
-  if (!["ready", "in-progress", "waiting", "review", "blocked", "completed"].includes(status)) return { error: "A valid task status is required" };
+  if (!TASKING_TASK_STATUSES.includes(status)) return { error: "A valid task status is required" };
   const task = {
     kind: "Task",
     title: cleanText(body.title ?? current?.title, 160),
@@ -92,7 +92,8 @@ function normalizeTask(body = {}, current = null) {
     evidenceCount: integer(body.evidenceCount ?? current?.evidenceCount, 0, 0, 10_000),
     dependencyCount: integer(body.dependencyCount ?? current?.dependencyCount, 0, 0, 10_000),
   };
-  if (!task.title || !task.description || !task.owner || !task.acceptance || !task.anchorId) return { error: "Task title, description, owner, acceptance, and anchorId are required" };
+  if (!task.title || !task.description || !task.acceptance || !task.anchorId) return { error: "Task title, description, acceptance, and anchorId are required" };
+  if (taskingTaskOwnerRequired(status) && !task.owner) return { error: "Task owner is required unless status is draft" };
   return { payload: task };
 }
 
@@ -285,7 +286,7 @@ async function customCollectionResponse(request, db, principal, type, segments, 
     const body = await deps.safeJson(request);
     const newId = objectId(body?.id);
     if (!newId) return deps.error("invalid_tasking_id", "A stable Tasking object ID is required", 400);
-    const normalized = type === "task" ? normalizeTask(body) : type === "relationship" ? normalizeRelationship(body) : normalizeRecord(type, body);
+    const normalized = type === "task" ? normalizeTaskingTask(body) : type === "relationship" ? normalizeRelationship(body) : normalizeRecord(type, body);
     if (normalized.error) return deps.error("invalid_tasking_object", normalized.error, 400);
     const result = await storeObject(db, principal, { id: newId, type, payload: normalized.payload, expected: 0 });
     const error = writeResult(result, deps); if (error) return error;
@@ -297,7 +298,7 @@ async function customCollectionResponse(request, db, principal, type, segments, 
     const body = await deps.safeJson(request);
     const expected = deps.expectedVersion(request, body);
     if (expected === null) return deps.error("precondition_required", "If-Match with the current Tasking object version is required", 428);
-    const normalized = type === "task" ? normalizeTask(body, current) : type === "relationship" ? normalizeRelationship(body, current) : normalizeRecord(type, body, current);
+    const normalized = type === "task" ? normalizeTaskingTask(body, current) : type === "relationship" ? normalizeRelationship(body, current) : normalizeRecord(type, body, current);
     if (normalized.error) return deps.error("invalid_tasking_object", normalized.error, 400);
     const result = await storeObject(db, principal, { id, type, payload: normalized.payload, expected });
     const error = writeResult(result, deps); if (error) return error;
