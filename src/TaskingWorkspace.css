@@ -10,7 +10,7 @@
   min-width: 0;
 }
 
-.tasking-foundation-state {
+.tasking-workspace-state {
   display: flex;
   align-items: center;
   gap: 7px;
@@ -18,8 +18,8 @@
   font-size: var(--if-font-size-xs);
 }
 
-.tasking-foundation-state > svg,
-.tasking-foundation-state > strong {
+.tasking-workspace-state > svg,
+.tasking-workspace-state > strong {
   color: var(--if-purple, var(--if-accent));
 }
 
@@ -386,6 +386,13 @@
 
 .tasking-anchor-card__tasks {
   display: grid;
+}
+
+.tasking-anchor-card__empty {
+  margin: 0;
+  padding: 10px;
+  color: var(--if-fg-muted);
+  font-size: var(--if-font-size-xs);
 }
 
 .tasking-task-row {
@@ -793,37 +800,18 @@
 }
 
 .tasking-graph {
-  position: relative;
-  min-width: 620px;
-  min-height: 455px;
-  overflow: auto;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 8px;
+  padding: 10px;
   border-bottom: 1px solid var(--if-border);
   background: var(--if-surface-subtle);
 }
 
-.tasking-graph > svg {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-}
-
-.tasking-graph path {
-  fill: none;
-  stroke: var(--if-accent);
-  stroke-width: 2;
-}
-
-.tasking-graph path.is-suggested {
-  stroke: var(--if-warning);
-  stroke-dasharray: 8 7;
-}
-
 .tasking-graph__node {
-  position: absolute;
   display: grid;
-  width: 160px;
-  min-height: 78px;
+  min-width: 0;
+  min-height: 72px;
   align-content: center;
   gap: 2px;
   padding: 9px;
@@ -851,13 +839,6 @@
 .tasking-graph__node strong {
   font-size: var(--if-font-size-xs);
 }
-
-.tasking-graph__node.is-left-top { left: 4%; top: 10%; }
-.tasking-graph__node.is-left-bottom { left: 4%; bottom: 10%; border-left-color: var(--if-warning); }
-.tasking-graph__node.is-center { left: 50%; top: 50%; transform: translate(-50%, -50%); }
-.tasking-graph__node.is-right-top { right: 12%; top: 10%; border-left-color: var(--if-purple, var(--if-accent)); }
-.tasking-graph__node.is-right-bottom { right: 12%; bottom: 10%; border-left-color: var(--if-warning); }
-.tasking-graph__node.is-far-right { right: 1%; top: 50%; transform: translateY(-50%); border-left-color: var(--if-success); }
 
 .tasking-relationship-list {
   display: grid;
@@ -978,7 +959,7 @@
 }
 
 @media (max-width: 760px) {
-  .tasking-foundation-state > span,
+  .tasking-workspace-state > span,
   .tasking-schema-rule > small,
   .tasking-scope__result {
     display: none;
@@ -1028,8 +1009,7 @@
     border-top: 1px solid var(--if-border);
   }
 
-  .tasking-file-table,
-  .tasking-graph {
+  .tasking-file-table {
     min-width: 680px;
   }
 

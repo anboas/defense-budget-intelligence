@@ -108,10 +108,11 @@ async function verifyTaskingBrowser(baseUrl, cookie) {
     page.on("pageerror", (error) => errors.push(error.message));
     page.on("console", (message) => { if (message.type() === "error" && !message.text().startsWith("Failed to load resource:")) errors.push(message.text()); });
     await page.goto(new URL("#/tasking?taskingView=portfolio", baseUrl).toString(), { waitUntil: "domcontentloaded" });
-    await page.getByText("Workspace + OneDrive synced", { exact: true }).waitFor();
-    assert.equal(await page.locator(".tasking-lane").count(), 5, "Signed-in Tasking must render the agent-created workstream");
-    await page.getByText("OneDrive", { exact: true }).first().waitFor();
-    await page.getByText("Index OneDrive", { exact: true }).waitFor();
+    await page.getByText("Workspace tasking", { exact: true }).waitFor();
+    assert.equal(await page.locator(".tasking-lane").count(), 1, "Signed-in Tasking must render only the persisted workstream");
+    await page.getByText("Growth", { exact: true }).first().waitFor();
+    await page.getByText("Index local source", { exact: true }).waitFor();
+    assert.equal(await page.getByText("Capture & pursuits", { exact: true }).count(), 0, "Signed-in Tasking must not merge synthetic workstreams");
     const draftRow = page.locator(".tasking-task-row").filter({ hasText: "Review unconfirmed source action" });
     await draftRow.getByText("Draft", { exact: true }).waitFor();
     await draftRow.getByText(/No owner · 1 evidence/).waitFor();
@@ -124,6 +125,11 @@ async function verifyTaskingBrowser(baseUrl, cookie) {
     assert.equal(await page.locator(".tasking-task-row").count(), 1, "Draft status filter must isolate draft tasks");
     await page.locator('[data-workspace-view="files"]').click();
     await page.locator(".tasking-file-table").getByText("Capture brief.docx", { exact: true }).waitFor();
+    await page.locator(".tasking-search input").fill("Capture brief");
+    assert.equal(await page.locator(".tasking-file-table > button").count(), 1, "Source search must filter the real metadata table");
+    await page.goto(new URL("#/tasking?taskingView=connections", baseUrl).toString(), { waitUntil: "domcontentloaded" });
+    await page.locator(".tasking-graph__node").first().waitFor();
+    assert.equal(await page.locator(".tasking-graph__node").count(), 2, "Connections must lay out persisted records without synthetic coordinates");
     const width = await page.evaluate(() => ({ viewport: window.innerWidth, scroll: document.documentElement.scrollWidth }));
     assert.ok(width.scroll <= width.viewport, `Tasking Agent API desktop projection overflowed: ${width.scroll}px > ${width.viewport}px`);
     mkdirSync("test-results", { recursive: true });
@@ -180,7 +186,7 @@ try {
   result = await body(await request(instance.baseUrl, "/api/v1/agent/capabilities", { token: agentToken }));
   assert.equal(result.response.status, 200);
   assert.equal(result.payload.apiVersion, "dbi-agent-v1");
-  assert.equal(result.payload.data.contractVersion, "1.2.1");
+  assert.equal(result.payload.data.contractVersion, "1.3.0");
   assert.deepEqual(result.payload.data.resources, [
     "records", "analytics", "tracking", "record-dispositions", "record-groups", "record-intelligence", "events", "event-catalog", "event-categories", "activity", "api-requests", "integrations", "tasking",
     "graph", "entities", "activities", "locations", "evidence", "sources", "enrichment", "reviews", "jobs",
@@ -189,8 +195,10 @@ try {
   result = await body(await request(instance.baseUrl, "/api/v1/agent/openapi.json", { token: agentToken }));
   assert.equal(result.response.status, 200);
   assert.equal(result.payload.openapi, "3.1.0");
-  assert.equal(result.payload.info.version, "1.2.1");
+  assert.equal(result.payload.info.version, "1.3.0");
   assert.deepEqual(result.payload.components.schemas.TaskingTaskStatus.enum, ["draft", "ready", "in-progress", "waiting", "review", "blocked", "completed"]);
+  assert.deepEqual(result.payload.components.schemas.TaskingSourceItem.properties.provider.enum, ["localfs", "onedrive"]);
+  assert.equal(result.payload.paths["/api/v1/agent/tasking/source-items/batch"].post.requestBody.content["application/json"].schema.properties.items.maxItems, 50);
   assert.match(result.payload.components.schemas.TaskingTaskCreate.properties.owner.description, /blank only while status is draft/i);
   assert.ok(result.payload.paths["/api/v1/agent/record-dispositions/{recordId}"], "Agent OpenAPI must document workspace tombstone and restore operations");
   assert.ok(result.payload.paths["/api/v1/agent/record-groups"], "Agent OpenAPI must document lifecycle grouping operations");
@@ -202,7 +210,7 @@ try {
   assert.ok(result.payload.paths["/api/v1/agent/enrichment/proposals"], "Agent OpenAPI must document cited enrichment proposals");
   assert.ok(result.payload.paths["/api/v1/agent/jobs"], "Agent OpenAPI must document intelligence publication jobs");
   assert.ok(result.payload.paths["/api/v1/agent/tasking/tasks/{taskId}"], "Agent OpenAPI must document Tasking CRUD");
-  assert.ok(result.payload.paths["/api/v1/agent/tasking/source-items/batch"], "Agent OpenAPI must document normalized OneDrive synchronization");
+  assert.ok(result.payload.paths["/api/v1/agent/tasking/source-items/batch"], "Agent OpenAPI must document normalized source synchronization");
 
   result = await body(await request(instance.baseUrl, "/api/v1/auth/agent-keys", {
     method: "POST", cookie: ownerCookie, body: { name: "Tasking read verifier", scopes: ["tasking:read"] },
@@ -211,16 +219,19 @@ try {
   const taskingReadToken = result.payload.token;
   result = await body(await request(instance.baseUrl, "/api/v1/agent/tasking", { token: taskingReadToken }));
   assert.equal(result.response.status, 200);
-  assert.equal(result.payload.data.tasks.length, 7, "Tasking snapshot must include the seven foundation tasks");
+  assert.deepEqual(result.payload.data.metadata.counts, { workstreams: 0, anchors: 0, tasks: 0, contextRecords: 0, relationships: 0, sourceItems: 0, sourceFiles: 0, sourceFolders: 0, linkedSourceItems: 0 });
+  assert.equal(result.payload.data.tasks.length, 0, "A new workspace must not receive synthetic tasks");
+  assert.equal(result.payload.data.workstreams.length, 0, "A new workspace must not receive synthetic workstreams");
+  assert.doesNotMatch(JSON.stringify(result.payload.data), /Example mission pursuit|Example owner|Synthetic foundation/, "Tasking projection must contain no demo records");
   result = await body(await request(instance.baseUrl, "/api/v1/agent/tasking/tasks", {
     method: "POST", token: taskingReadToken, headers: { "idempotency-key": "read-key-cannot-write" },
-    body: { id: "task-agent-created", title: "Index OneDrive", description: "Normalize OneDrive item metadata.", status: "ready", owner: "Codex", acceptance: "Source items are queryable", anchorId: "anchor-file" },
+    body: { id: "task-agent-created", title: "Index local source", description: "Normalize local source metadata.", status: "ready", owner: "Codex", acceptance: "Source items are queryable", anchorId: "anchor-onedrive" },
   }));
   assert.equal(result.response.status, 403, "tasking:read must not authorize writes");
 
   result = await body(await request(instance.baseUrl, "/api/v1/agent/tasking/tasks", {
     method: "POST", token: agentToken, headers: { "idempotency-key": "tasking-create-1" },
-    body: { id: "task-agent-created", title: "Index OneDrive", description: "Normalize OneDrive item metadata.", status: "draft", owner: "", acceptance: "Source items are queryable after review", anchorId: "anchor-file" },
+    body: { id: "task-agent-created", title: "Index local source", description: "Normalize local source metadata.", status: "draft", owner: "", acceptance: "Source items are queryable after review", anchorId: "anchor-onedrive" },
   }));
   assert.equal(result.response.status, 201);
   assert.equal(result.payload.data.version, 1);
@@ -245,7 +256,7 @@ try {
   const draftAcceptance = "Confirm owner, date, and permission to proceed while retaining supporting evidence.";
   result = await body(await request(instance.baseUrl, "/api/v1/agent/tasking/tasks", {
     method: "POST", token: agentToken, headers: { "idempotency-key": "tasking-draft-create-1" },
-    body: { id: "task-agent-draft", title: "Review unconfirmed source action", description: draftDescription, status: "draft", owner: "", acceptance: draftAcceptance, anchorId: "anchor-file", evidenceCount: 1 },
+    body: { id: "task-agent-draft", title: "Review unconfirmed source action", description: draftDescription, status: "draft", owner: "", acceptance: draftAcceptance, anchorId: "anchor-onedrive", evidenceCount: 1 },
   }));
   assert.equal(result.response.status, 201);
   assert.equal(result.payload.data.description, draftDescription, "Draft creation must preserve source references and unconfirmed timing");
@@ -254,24 +265,24 @@ try {
 
   result = await body(await request(instance.baseUrl, "/api/v1/agent/tasking/records", {
     method: "POST", token: agentToken, headers: { "idempotency-key": "tasking-workstream-1" },
-    body: { id: "workstream-onedrive", type: "workstream", name: "OneDrive intake", description: "Codex-normalized workspace material.", tone: "blue" },
+    body: { id: "workstream-onedrive", type: "workstream", name: "Local source intake", description: "Codex-normalized workspace material.", tone: "blue" },
   }));
   assert.equal(result.response.status, 201);
   result = await body(await request(instance.baseUrl, "/api/v1/agent/tasking/records", {
     method: "POST", token: agentToken, headers: { "idempotency-key": "tasking-anchor-1" },
-    body: { id: "anchor-onedrive", type: "anchor", kind: "File", title: "OneDrive intake", workstreamId: "workstream-onedrive", status: "ready", outcome: "Keep source metadata current", nextMove: "Run sync" },
+    body: { id: "anchor-onedrive", type: "anchor", kind: "File", title: "Local source intake", workstreamId: "workstream-onedrive", status: "ready", outcome: "Keep source metadata current", nextMove: "Run sync" },
   }));
   assert.equal(result.response.status, 201);
   result = await body(await request(instance.baseUrl, "/api/v1/agent/tasking/relationships", {
     method: "POST", token: agentToken, headers: { "idempotency-key": "tasking-relationship-1" },
-    body: { id: "relationship-onedrive-file", fromId: "anchor-onedrive", toId: "anchor-file", type: "informs", status: "confirmed", basis: "Explicit Agent API sync mapping" },
+    body: { id: "relationship-onedrive-file", fromId: "anchor-onedrive", toId: "source-brief", type: "informs", status: "confirmed", basis: "Explicit Agent API source mapping" },
   }));
   assert.equal(result.response.status, 201);
   assert.equal(result.payload.data.type, "relationship");
 
   const oneDriveBatch = { items: [
-    { id: "source-root", provider: "onedrive", sourceId: "drive-a:root", driveId: "drive-a", itemId: "root", name: "Growth", path: "/Growth", itemType: "folder", lastModifiedAt: "2026-10-25T15:00:00Z" },
-    { id: "source-brief", provider: "onedrive", sourceId: "drive-a:item-1", driveId: "drive-a", itemId: "item-1", parentSourceId: "drive-a:root", name: "Capture brief.docx", path: "/Growth/Capture brief.docx", itemType: "file", mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document", size: 4096, etag: "etag-1", webUrl: "https://example.sharepoint.com/Growth/Capture%20brief.docx", lastModifiedAt: "2026-10-25T15:01:00Z", parseStatus: "parsed", recordId: "anchor-file" },
+    { id: "source-root", provider: "localfs", sourceId: "localfs:root", name: "Growth", path: "/Growth", itemType: "folder", lastModifiedAt: "2026-10-25T15:00:00Z" },
+    { id: "source-brief", provider: "localfs", sourceId: "localfs:item-1", parentSourceId: "localfs:root", name: "Capture brief.docx", path: "/Growth/Capture brief.docx", itemType: "file", mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document", size: 4096, etag: "etag-1", lastModifiedAt: "2026-10-25T15:01:00Z", parseStatus: "parsed", recordId: "anchor-onedrive" },
   ] };
   result = await body(await request(instance.baseUrl, "/api/v1/agent/tasking/source-items/batch", {
     method: "POST", token: agentToken, headers: { "idempotency-key": "onedrive-batch-1" }, body: oneDriveBatch,
@@ -282,25 +293,36 @@ try {
   result = await body(await request(instance.baseUrl, "/api/v1/agent/tasking/source-items/batch", {
     method: "POST", token: agentToken, headers: { "idempotency-key": "onedrive-batch-1" }, body: oneDriveBatch,
   }));
-  assert.equal(result.response.headers.get("idempotent-replay"), "true", "OneDrive synchronization must replay idempotently");
+  assert.equal(result.response.headers.get("idempotent-replay"), "true", "Source synchronization must replay idempotently");
   result = await body(await request(instance.baseUrl, "/api/v1/agent/tasking/source-items/batch", {
     method: "POST", token: agentToken, headers: { "idempotency-key": "onedrive-batch-conflict" }, body: { items: [
-      { id: "source-conflicting-id", sourceId: "drive-a:item-1", name: "Conflict.docx", path: "/Conflict.docx", itemType: "file" },
-      { id: "source-must-not-partially-save", sourceId: "drive-a:item-2", name: "Partial.docx", path: "/Partial.docx", itemType: "file" },
+      { id: "source-conflicting-id", provider: "localfs", sourceId: "localfs:item-1", name: "Conflict.docx", path: "/Conflict.docx", itemType: "file" },
+      { id: "source-must-not-partially-save", provider: "localfs", sourceId: "localfs:item-2", name: "Partial.docx", path: "/Partial.docx", itemType: "file" },
     ] },
   }));
-  assert.equal(result.response.status, 409, "OneDrive source identity collisions must fail closed");
+  assert.equal(result.response.status, 409, "Source identity collisions must fail closed");
   result = await body(await request(instance.baseUrl, "/api/v1/agent/tasking/source-items/source-must-not-partially-save", { token: agentToken }));
-  assert.equal(result.response.status, 404, "A rejected OneDrive batch must not partially persist later items");
+  assert.equal(result.response.status, 404, "A rejected source batch must not partially persist later items");
   result = await body(await request(instance.baseUrl, "/api/v1/agent/tasking/source-items/source-credential-url", {
     method: "PUT", token: agentToken, headers: { "idempotency-key": "onedrive-credential-url" },
-    body: { sourceId: "drive-a:credential", name: "Credential URL.docx", path: "/Credential URL.docx", itemType: "file", webUrl: "https://example.sharepoint.com/file?token=forbidden" },
+    body: { provider: "localfs", sourceId: "localfs:credential", name: "Credential URL.docx", path: "/Credential URL.docx", itemType: "file", webUrl: "https://example.test/file?token=forbidden" },
   }));
-  assert.equal(result.response.status, 400, "OneDrive metadata must reject credential-bearing URLs");
+  assert.equal(result.response.status, 400, "Source metadata must reject credential-bearing URLs");
   result = await body(await request(instance.baseUrl, "/api/v1/agent/tasking", { token: agentToken }));
   assert.equal(result.payload.data.metadata.sourceHealth, "connected");
   assert.equal(result.payload.data.sourceItems.length, 2);
+  assert.deepEqual(result.payload.data.metadata.counts, { workstreams: 1, anchors: 1, tasks: 2, contextRecords: 0, relationships: 1, sourceItems: 2, sourceFiles: 1, sourceFolders: 1, linkedSourceItems: 1 });
+  assert.equal(result.payload.data.folders.length, 0, "Tasking snapshots must not merge demo folder trees");
   assert.ok(result.payload.data.tasks.some((task) => task.id === "task-agent-created" && task.version === 2));
+  result = await body(await request(instance.baseUrl, "/api/v1/agent/tasking/tasks", {
+    method: "POST", token: agentToken, headers: { "idempotency-key": "tasking-delete-verifier-create" },
+    body: { id: "task-delete-verifier", title: "Delete verifier", description: "Exercise custom task deletion.", status: "draft", owner: "", acceptance: "Deletion returns a tombstone", anchorId: "anchor-onedrive" },
+  }));
+  assert.equal(result.response.status, 201);
+  const taskDeleteResponse = await request(instance.baseUrl, "/api/v1/agent/tasking/tasks/task-delete-verifier", { method: "DELETE", token: agentToken, headers: { "if-match": "1" } });
+  assert.equal(taskDeleteResponse.status, 204, "Custom Tasking deletion must accept the matching object type");
+  result = await body(await request(instance.baseUrl, "/api/v1/agent/tasking/tasks/task-delete-verifier", { token: agentToken }));
+  assert.equal(result.response.status, 404, "Deleted custom tasks must leave the active collection");
   await verifyTaskingBrowser(instance.baseUrl, ownerCookie);
 
   result = await body(await request(instance.baseUrl, "/api/v1/agent/event-catalog?q=simulation&includePast=1", { token: agentToken }));
@@ -761,7 +783,7 @@ try {
   assert.ok(result.payload.data.tasks.some((entry) => entry.id === "task-agent-draft" && entry.status === "draft" && entry.owner === ""), "Blank-owner draft state must survive restart");
   assert.ok(result.payload.data.workstreams.some((entry) => entry.id === "workstream-onedrive"), "Tasking workstreams must survive restart");
   assert.ok(result.payload.data.relationships.some((entry) => entry.id === "relationship-onedrive-file"), "Tasking relationships must survive restart");
-  assert.equal(result.payload.data.sourceItems.length, 2, "Normalized OneDrive metadata must survive restart");
+  assert.equal(result.payload.data.sourceItems.length, 2, "Normalized source metadata must survive restart");
   result = await body(await request(instance.baseUrl, "/api/v1/agent/tracking", { token: restartToken }));
   assert.ok(result.payload.data.some((entry) => entry.recordId === factualRecordId && entry.note === "Updated shared note"), "Tracking state must survive restart");
   result = await body(await request(instance.baseUrl, "/api/v1/agent/events", { token: restartToken }));
@@ -779,7 +801,7 @@ try {
   result = await body(await request(instance.baseUrl, "/api/v1/agent/capabilities", { token: restartToken }));
   assert.equal(result.response.status, 401, "Revoked agent credentials must fail immediately");
 
-  console.log("Verified Agent API 1.2.1 discovery, native draft Tasking CRUD, normalized OneDrive synchronization, graph traversal, cited proposals, separate review/publish scopes, atomic workspace overlays, evidence/source reads, redacted request logging, manual-record CRUD, shared tracking/events, stable-ID integrity, CSRF protection, audit activity, idempotency, version conflicts, restart persistence, and revocation");
+  console.log("Verified Agent API 1.3.0 discovery, real-data-only Tasking CRUD, native drafts, normalized local-source synchronization, dynamic relationships, graph traversal, cited proposals, separate review/publish scopes, atomic workspace overlays, evidence/source reads, redacted request logging, manual-record CRUD, shared tracking/events, stable-ID integrity, CSRF protection, audit activity, idempotency, version conflicts, restart persistence, and revocation");
 } finally {
   await stopPages(instance);
   rmSync(persistPath, { recursive: true, force: true });

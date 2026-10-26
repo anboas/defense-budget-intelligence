@@ -84,7 +84,7 @@ export function useTaskingTasks() {
       if (!remote) writeLocal(workspaceId, next);
       setOverrides(next);
       if (remote) await refresh(); else setWorkspace({ ...TASKING_FOUNDATION, tasks: mergeTaskingTasks(next) });
-      setNotice(current.foundation === false ? "Task removed from this workspace." : "Task reset to the foundation state.");
+      setNotice("Task removed from this workspace.");
     } catch (error) {
       setNotice(error.message);
       if (error.code === "version_conflict") await refresh().catch(() => {});
@@ -96,7 +96,7 @@ export function useTaskingTasks() {
     tasks: useMemo(() => remote ? workspace.tasks : mergeTaskingTasks(overrides), [overrides, remote, workspace.tasks]),
     workspace: useMemo(() => ({ ...workspace, tasks: remote ? workspace.tasks : mergeTaskingTasks(overrides) }), [overrides, remote, workspace]),
     canWrite: Boolean(!remote || auth?.user?.canWriteWorkspace),
-    persistenceLabel: remote ? (workspace.sourceItems?.length ? "Workspace + OneDrive synced" : "Workspace persisted") : "Browser persisted",
+    persistenceLabel: remote ? (workspace.sourceItems?.length ? "Workspace + source metadata" : "Workspace persisted") : "Local preview",
     savingTaskId,
     notice,
     saveTask,
