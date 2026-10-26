@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { lazy, Suspense, useMemo, useState } from "react";
 import {
   AlertTriangle, ArrowRight, CheckCircle2, ChevronDown, ChevronRight, CircleDot,
   File, FileText, Folder, FolderOpen, GitBranch, Link2, ListFilter, RotateCcw, Save, Search,
@@ -8,12 +8,16 @@ import ControlSelect from "./ControlSelect.jsx";
 import SemanticStatusBadge from "./SemanticStatusBadge.jsx";
 import ControlWorkbenchHeader from "./WorkbenchHeader.jsx";
 import { flattenTaskingFolders } from "./tasking-foundation-data.js";
+import { buildTaskingFileAnalytics, formatTaskingBytes, formatTaskingDate, sortTaskingFiles } from "./tasking-file-analytics.js";
 import { TASKING_TASK_STATUSES, taskingTaskOwnerRequired } from "./tasking-model.js";
 import { useTaskingTasks } from "./use-tasking-tasks.js";
 import "./TaskingWorkspace.css";
 
 const VIEW_IDS = new Set(["portfolio", "files", "connections"]);
 const OPEN_STATUSES = new Set(["draft", "ready", "in-progress", "waiting", "review"]);
+const FILE_RELATIONS = new Set(["all", "task", "workspace", "unlinked"]);
+const FILE_SORTS = new Set(["modified-desc", "size-desc", "name-asc"]);
+const TaskingFileView = lazy(() => import("./TaskingFileView.jsx"));
 
 function taskStatusLabel(status) {
   if (status === "review") return "In review";
@@ -30,6 +34,9 @@ function routeState(routeHash = "") {
     query: params.get("taskingQuery") || "",
     workstreamId: params.get("taskingWorkstream") || "all",
     status: params.get("taskingStatus") || "all",
+    fileType: params.get("taskingFileType") || "all",
+    fileRelation: FILE_RELATIONS.has(params.get("taskingFileRelation")) ? params.get("taskingFileRelation") : "all",
+    fileSort: FILE_SORTS.has(params.get("taskingFileSort")) ? params.get("taskingFileSort") : "modified-desc",
   };
 }
 
@@ -41,14 +48,6 @@ function updateTaskingRoute(patch) {
     else params.set(key, String(value));
   }
   window.location.hash = `${path}${params.size ? `?${params}` : ""}`;
-}
-
-function statusTone(status) {
-  if (["waiting", "changed"].includes(status)) return "warning";
-  if (status === "review") return "review";
-  if (["in-progress", "active"].includes(status)) return "active";
-  if (["current", "ready", "indexed", "parsed"].includes(status)) return "verified";
-  return "neutral";
 }
 
 function recordHref(recordId, view) {
@@ -86,10 +85,7 @@ function FolderTree({ folders, selectedId, onSelect, itemCount = 0 }) {
 function sourceTree(sourceItems = []) {
   if (!sourceItems.length) return [];
   const activeItems = sourceItems.filter((item) => !item.deletedAt);
-  const nodes = new Map(activeItems.map((item) => [item.sourceId, {
-    id: item.id, name: item.name, path: item.path, kind: item.itemType, status: item.status,
-    parseStatus: item.parseStatus, recordId: item.recordId, summary: item.summary, children: [],
-  }]));
+  const nodes = new Map(activeItems.map((item) => [item.sourceId, { ...item, kind: item.itemType, children: [] }]));
   const roots = [];
   for (const item of activeItems) {
     const node = nodes.get(item.sourceId);
@@ -135,21 +131,6 @@ function PortfolioView({ workstreams, anchors, tasks, selectedId, onSelect }) {
   </section>;
 }
 
-function FileView({ flatFolders, selectedId, onSelect, totalItems }) {
-  return <section className="tasking-file-intelligence" aria-labelledby="tasking-file-intelligence-title">
-    <header><div><span>Indexed source view</span><h3 id="tasking-file-intelligence-title">Folder structure and file intelligence</h3><p>Location, derived context, availability, and linked work remain independently labeled.</p></div><strong>{flatFolders.length} of {totalItems} items</strong></header>
-    {flatFolders.length ? <div className="tasking-file-table" role="table" aria-label="Indexed folders and files">
-      <div className="tasking-file-table__head" role="row"><span role="columnheader">Name</span><span role="columnheader">Context</span><span role="columnheader">Parse</span><span role="columnheader">Source state</span></div>
-      {flatFolders.map((entry) => <button key={entry.id} type="button" role="row" className={selectedId === entry.id ? "is-selected" : ""} onClick={() => onSelect(entry)}>
-        <span role="cell" style={{ "--tasking-file-depth": entry.depth }}>{entry.kind === "folder" ? <Folder size={15} /> : <FileText size={15} />}<span><strong>{entry.name}</strong><small>{entry.path}</small></span></span>
-        <span role="cell">{entry.recordId ? "Linked work" : entry.kind === "folder" ? "Source structure" : "Unlinked"}</span>
-        <span role="cell">{entry.parseStatus || (entry.kind === "folder" ? "Not applicable" : "Not requested")}</span>
-        <span role="cell"><ControlStatusBadge status={statusTone(entry.status || "current")} label={(entry.status || "current").replaceAll("-", " ")} /></span>
-      </button>)}
-    </div> : <div className="tasking-empty"><Search size={20} /><strong>No source items match</strong><span>Clear the search to restore the indexed source view.</span></div>}
-  </section>;
-}
-
 function ConnectionsView({ records, relationships, selectedId, onSelect }) {
   const visibleIds = new Set(relationships.flatMap((relationship) => [relationship.fromId, relationship.toId]));
   const nodes = records.filter((record) => visibleIds.has(record.id));
@@ -185,14 +166,22 @@ function TaskEditor({ task, canWrite, saving, notice, onSave, onReset }) {
 function ContextPanel({ record, anchor, folder, relatedRecords, relationshipRows, workstreams, onSelect, taskState }) {
   if (!record) return <aside className="tasking-context"><p>No record selected.</p></aside>;
   const task = record.kind === "Task" ? record : null;
+  const file = record.kind === "File" ? record : null;
   return <aside className="tasking-context" aria-labelledby="tasking-context-title">
     <header><span>Selected {record.kind}</span><h3 id="tasking-context-title">{record.title || record.name}</h3><SemanticStatusBadge category="workflow" value={record.status || "ready"} /></header>
-    <section className="tasking-context__summary"><h4>What matters</h4><p>{record.description || record.outcome || record.summary || "Folder context is available without changing the source structure."}</p></section>
+    <section className="tasking-context__summary"><h4>What matters</h4><p>{record.description || record.outcome || record.summary || (file ? "Read-only source metadata is available without opening or changing the file." : "Folder context is available without changing the source structure.")}</p></section>
     <dl className="tasking-context__facts">
-      <div><dt>Primary placement</dt><dd>{anchor ? workstreams.find((workstream) => workstream.id === anchor.workstreamId)?.name : "Source structure"}</dd></div>
-      <div><dt>Business home</dt><dd>{folder?.path || "Not linked"}</dd></div>
-      <div><dt>Source state</dt><dd>{anchor?.sourceState || record.status || "Observed"}</dd></div>
-      <div><dt>Acceptance</dt><dd>{task?.acceptance || "Record-specific review"}</dd></div>
+      {file ? <>
+        <div><dt>File type</dt><dd>{file.fileType?.label || "Unknown"}</dd></div>
+        <div><dt>Size</dt><dd>{formatTaskingBytes(file.size)}</dd></div>
+        <div><dt>Last modified</dt><dd>{formatTaskingDate(file.lastModifiedAt)}</dd></div>
+        <div><dt>Task relation</dt><dd>{file.taskIds?.length ? `${file.taskIds.length} ${file.taskIds.length === 1 ? "task" : "tasks"}` : file.workspaceLinked ? "Workspace only" : "Not linked"}</dd></div>
+      </> : <>
+        <div><dt>Primary placement</dt><dd>{anchor ? workstreams.find((workstream) => workstream.id === anchor.workstreamId)?.name : "Source structure"}</dd></div>
+        <div><dt>Business home</dt><dd>{folder?.path || "Not linked"}</dd></div>
+        <div><dt>Source state</dt><dd>{anchor?.sourceState || record.status || "Observed"}</dd></div>
+        <div><dt>Acceptance</dt><dd>{task?.acceptance || "Record-specific review"}</dd></div>
+      </>}
     </dl>
     {anchor ? <section className="tasking-context__next"><span>Next accepted move</span><strong>{anchor.nextMove}</strong><small>{anchor.dueLabel}</small></section> : null}
     {task ? <TaskEditor key={`${task.id}:${task.version}`} task={task} canWrite={taskState.canWrite} saving={taskState.savingTaskId === task.id} notice={taskState.notice} onSave={taskState.saveTask} onReset={taskState.resetTask} /> : null}
@@ -210,24 +199,36 @@ export default function TaskingWorkspace({ routeHash = "" }) {
   const [query, setQuery] = useState(routed.query);
   const [workstreamId, setWorkstreamId] = useState(routed.workstreamId);
   const [status, setStatus] = useState(routed.status);
+  const [fileType, setFileType] = useState(routed.fileType);
+  const [fileRelation, setFileRelation] = useState(routed.fileRelation);
+  const [fileSort, setFileSort] = useState(routed.fileSort);
   const sourceFolders = useMemo(() => sourceTree(workspace.sourceItems), [workspace.sourceItems]);
   const folderRoots = useMemo(() => [...workspace.folders, ...sourceFolders], [sourceFolders, workspace.folders]);
   const flatFolders = useMemo(() => flattenTaskingFolders(folderRoots), [folderRoots]);
-  const records = useMemo(() => [...workspace.anchors, ...tasks, ...workspace.contextRecords, ...flatFolders.map((entry) => ({ ...entry, title: entry.name, kind: entry.kind === "folder" ? "Folder" : "File" }))], [flatFolders, tasks, workspace.anchors, workspace.contextRecords]);
+  const fileAnalytics = useMemo(() => buildTaskingFileAnalytics(flatFolders, tasks, workspace.relationships), [flatFolders, tasks, workspace.relationships]);
+  const activeFileType = fileType === "all" || fileAnalytics.types.some((type) => type.id === fileType) ? fileType : "all";
+  const filesById = useMemo(() => new Map(fileAnalytics.files.map((file) => [file.id, file])), [fileAnalytics.files]);
+  const records = useMemo(() => [...workspace.anchors, ...tasks, ...workspace.contextRecords, ...flatFolders.map((entry) => ({ ...(filesById.get(entry.id) || entry), title: entry.name, kind: entry.kind === "folder" ? "Folder" : "File" }))], [filesById, flatFolders, tasks, workspace.anchors, workspace.contextRecords]);
   const selected = records.find((record) => record.id === routed.recordId) || workspace.anchors[0] || tasks[0] || flatFolders[0] || null;
-  const selectedAnchor = selected?.kind === "Task" ? workspace.anchors.find((anchor) => anchor.id === selected.anchorId) : workspace.anchors.find((anchor) => anchor.id === selected?.id || anchor.folderId === selected?.id);
+  const selectedAnchor = selected?.kind === "Task" ? workspace.anchors.find((anchor) => anchor.id === selected.anchorId) : workspace.anchors.find((anchor) => anchor.id === selected?.id || anchor.id === selected?.recordId || anchor.folderId === selected?.id);
   const selectedFolder = ["Folder", "File"].includes(selected?.kind) ? selected : flatFolders.find((entry) => entry.id === selectedAnchor?.folderId);
   const selectedFolderId = ["Folder", "File"].includes(selected?.kind) ? selected.id : selectedFolder?.id;
   const selectedRelationships = workspace.relationships.filter((relationship) => selected && ([relationship.fromId, relationship.toId].includes(selected.id) || (selectedAnchor && [relationship.fromId, relationship.toId].includes(selectedAnchor.id))));
   const relatedIds = new Set([
     ...(selectedAnchor?.connectionIds || []),
+    selected?.recordId,
     ...selectedRelationships.flatMap((relationship) => [relationship.fromId, relationship.toId]),
-  ]);
+  ].filter(Boolean));
   relatedIds.delete(selected?.id);
-  relatedIds.delete(selectedAnchor?.id);
+  if (selected?.kind !== "File") relatedIds.delete(selectedAnchor?.id);
   const relatedRecords = records.filter((record) => relatedIds.has(record.id)).slice(0, 6);
   const normalizedQuery = query.trim().toLowerCase();
-  const filteredFolders = normalizedQuery ? flatFolders.filter((entry) => [entry.name, entry.path, entry.summary].some((value) => String(value || "").toLowerCase().includes(normalizedQuery))) : flatFolders;
+  const filteredFiles = sortTaskingFiles(fileAnalytics.files.filter((file) => {
+    const matchesQuery = !normalizedQuery || [file.name, file.path, file.summary, file.mimeType, file.fileType.label, ...file.taskTitles].some((value) => String(value || "").toLowerCase().includes(normalizedQuery));
+    const matchesType = activeFileType === "all" || file.fileType.id === activeFileType;
+    const matchesRelation = fileRelation === "all" || (fileRelation === "task" && file.taskIds.length > 0) || (fileRelation === "workspace" && file.workspaceLinked) || (fileRelation === "unlinked" && !file.workspaceLinked && !file.taskIds.length);
+    return matchesQuery && matchesType && matchesRelation;
+  }), fileSort);
   const filteredAnchors = workspace.anchors.filter((anchor) => {
     const anchorTasks = tasks.filter((task) => task.anchorId === anchor.id);
     const matchesQuery = !normalizedQuery || [anchor.title, anchor.outcome, anchor.nextMove, ...anchorTasks.flatMap((task) => [task.title, task.description])].some((value) => String(value).toLowerCase().includes(normalizedQuery));
@@ -243,12 +244,18 @@ export default function TaskingWorkspace({ routeHash = "" }) {
 
   function selectRecord(recordOrId, preferredView = routed.view) {
     const record = typeof recordOrId === "string" ? records.find((item) => item.id === recordOrId) : recordOrId;
-    const recordId = record?.recordId || record?.id || recordOrId || "";
+    const recordId = record?.id || recordOrId || "";
     updateTaskingRoute({ taskingView: preferredView, taskingRecord: recordId });
   }
 
   function commitFilter(key, value, setter) {
     setter(value);
+    updateTaskingRoute({ [key]: value, taskingRecord: routed.recordId });
+  }
+
+  function commitFileFilter(key, value) {
+    const setters = { taskingFileType: setFileType, taskingFileRelation: setFileRelation, taskingFileSort: setFileSort };
+    setters[key]?.(value);
     updateTaskingRoute({ [key]: value, taskingRecord: routed.recordId });
   }
 
@@ -258,23 +265,28 @@ export default function TaskingWorkspace({ routeHash = "" }) {
     <ControlWorkbenchHeader eyebrow="Workspace work" title="Tasking" summary="See where work lives, how it clusters into workstreams, what is connected, and what needs movement next." meta={headerMeta} metrics={[
       { id: "workstreams", label: "Workstreams", value: workspace.workstreams.length, meta: "One primary placement per task" },
       { id: "active", label: "Open work", value: tasks.filter((task) => OPEN_STATUSES.has(task.status)).length, meta: `${tasks.filter((task) => task.status === "draft").length} drafts`, tone: "info" },
-      { id: "sources", label: "Source items", value: counts.sourceItems ?? workspace.sourceItems.length, meta: `${counts.sourceFiles ?? workspace.sourceItems.filter((item) => item.itemType === "file").length} reviewed files` },
+      { id: "sources", label: "Source items", value: counts.sourceItems ?? workspace.sourceItems.length, meta: `${fileAnalytics.reviewedFiles} reviewed ${fileAnalytics.reviewedFiles === 1 ? "file" : "files"}` },
       { id: "linked", label: "Linked sources", value: counts.linkedSourceItems ?? workspace.sourceItems.filter((item) => item.recordId).length, meta: "Connected to workspace records", tone: counts.linkedSourceItems ? "success" : "warning" },
       { id: "review", label: "Needs attention", value: waiting + review, meta: `${waiting} waiting · ${review} in review`, tone: waiting + review ? "warning" : "success" },
     ]} metricLabel="Tasking workspace summary" />
     <ControlPageBody compact>
       <section className="tasking-scope" aria-label="Tasking scope controls">
         <label className="tasking-search"><Search size={15} aria-hidden="true" /><span className="sr-only">Search Tasking</span><input value={query} onChange={(event) => setQuery(event.target.value)} onBlur={() => updateTaskingRoute({ taskingQuery: query })} onKeyDown={(event) => { if (event.key === "Enter") updateTaskingRoute({ taskingQuery: query }); }} placeholder="Search work, source names, paths, and context…" /></label>
-        <ControlSelect compact ariaLabel="Workstream" value={workstreamId} options={[["all", "All workstreams"], ...workspace.workstreams.map((item) => [item.id, item.name])]} onChange={(value) => commitFilter("taskingWorkstream", value, setWorkstreamId)} />
-        <ControlSelect compact ariaLabel="Status" value={status} options={[["all", "All states"], ...TASKING_TASK_STATUSES.map((value) => [value, taskStatusLabel(value)])]} onChange={(value) => commitFilter("taskingStatus", value, setStatus)} />
-        <span className="tasking-scope__result"><ListFilter size={14} />{routed.view === "files" ? `${filteredFolders.length} source items` : `${filteredAnchors.length} anchors · ${filteredTasks.length} tasks`}</span>
+        {routed.view === "files" ? <>
+          <ControlSelect compact ariaLabel="File type" value={activeFileType} options={[["all", "All file types"], ...fileAnalytics.types.map((type) => [type.id, type.label])]} onChange={(value) => commitFileFilter("taskingFileType", value)} />
+          <ControlSelect compact ariaLabel="Task relation" value={fileRelation} options={[["all", "All task relations"], ["task", "Related to tasks"], ["workspace", "Workspace linked"], ["unlinked", "Unlinked"]]} onChange={(value) => commitFileFilter("taskingFileRelation", value)} />
+        </> : <>
+          <ControlSelect compact ariaLabel="Workstream" value={workstreamId} options={[["all", "All workstreams"], ...workspace.workstreams.map((item) => [item.id, item.name])]} onChange={(value) => commitFilter("taskingWorkstream", value, setWorkstreamId)} />
+          <ControlSelect compact ariaLabel="Status" value={status} options={[["all", "All states"], ...TASKING_TASK_STATUSES.map((value) => [value, taskStatusLabel(value)])]} onChange={(value) => commitFilter("taskingStatus", value, setStatus)} />
+        </>}
+        <span className="tasking-scope__result"><ListFilter size={14} />{routed.view === "files" ? `${filteredFiles.length} of ${fileAnalytics.totalFiles} files` : `${filteredAnchors.length} anchors · ${filteredTasks.length} tasks`}</span>
       </section>
       <div className="tasking-schema-rule"><strong>Projection:</strong><span>Workstream</span><ChevronRight size={12} /><span>Pursuit, Account, File, or Goal anchor</span><ChevronRight size={12} /><span>Task</span><small>Connections add context without duplicating work.</small></div>
       <div className="tasking-layout">
         <FolderTree folders={folderRoots} selectedId={selectedFolderId} itemCount={workspace.sourceItems.length} onSelect={(node) => selectRecord(node, node.kind === "file" ? "files" : routed.view)} />
         <main className="tasking-primary">
           {routed.view === "portfolio" ? <PortfolioView workstreams={filteredWorkstreams} anchors={filteredAnchors} tasks={filteredTasks} selectedId={selected?.id} onSelect={selectRecord} /> : null}
-          {routed.view === "files" ? <FileView flatFolders={filteredFolders} totalItems={flatFolders.length} selectedId={selectedFolderId} onSelect={(node) => selectRecord(node, "files")} /> : null}
+          {routed.view === "files" ? <Suspense fallback={<div className="tasking-empty"><FileText size={20} /><strong>Loading file intelligence</strong></div>}><TaskingFileView analytics={fileAnalytics} files={filteredFiles} selectedId={selectedFolderId} fileType={activeFileType} fileSort={fileSort} onFilter={commitFileFilter} onSelect={(node) => selectRecord(node, "files")} /></Suspense> : null}
           {routed.view === "connections" ? <ConnectionsView records={records} relationships={workspace.relationships} selectedId={selected?.id} onSelect={(id) => selectRecord(id, "connections")} /> : null}
           {!filteredAnchors.length && routed.view === "portfolio" ? <div className="tasking-empty"><AlertTriangle size={20} /><strong>No work matches this scope</strong><span>Clear search or filters to restore the portfolio.</span></div> : null}
         </main>

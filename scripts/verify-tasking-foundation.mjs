@@ -33,7 +33,8 @@ async function verifyViewport(name, viewport, { screenshot = false } = {}) {
   assert.doesNotMatch(bodyText, /Synthetic foundation|Example mission pursuit|Example owner|Capture brief v0\.2/i, `${name}: demo copy must not ship`);
 
   await page.goto(`${baseUrl}#/tasking?taskingView=files`, { waitUntil: "domcontentloaded" });
-  await page.getByText("No source items match", { exact: true }).waitFor();
+  await page.getByText("File intelligence", { exact: true }).waitFor();
+  await page.getByText("No files match", { exact: true }).waitFor();
   await page.goto(`${baseUrl}#/tasking?taskingView=connections`, { waitUntil: "domcontentloaded" });
   await page.getByText("No relationships recorded", { exact: true }).waitFor();
 

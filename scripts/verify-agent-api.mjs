@@ -124,7 +124,17 @@ async function verifyTaskingBrowser(baseUrl, cookie) {
     await page.getByText("Review unconfirmed source action", { exact: true }).waitFor();
     assert.equal(await page.locator(".tasking-task-row").count(), 1, "Draft status filter must isolate draft tasks");
     await page.locator('[data-workspace-view="files"]').click();
+    await page.getByText("File intelligence", { exact: true }).waitFor();
+    await page.getByText("Word document", { exact: true }).first().waitFor();
+    await page.getByText("4.1 KB", { exact: true }).first().waitFor();
     await page.locator(".tasking-file-table").getByText("Capture brief.docx", { exact: true }).waitFor();
+    const sourceRow = page.locator("[data-tasking-file-row]").filter({ hasText: "Capture brief.docx" });
+    await sourceRow.getByText("2 tasks", { exact: true }).waitFor();
+    await sourceRow.click();
+    await page.locator(".tasking-context__facts").getByText("Word document", { exact: true }).waitFor();
+    await page.locator(".tasking-context__links").getByText("Local source intake", { exact: true }).waitFor();
+    mkdirSync("test-results", { recursive: true });
+    await page.screenshot({ path: resolve("test-results/tasking-file-analytics-desktop.png"), fullPage: true });
     await page.locator(".tasking-search input").fill("Capture brief");
     assert.equal(await page.locator(".tasking-file-table > button").count(), 1, "Source search must filter the real metadata table");
     await page.goto(new URL("#/tasking?taskingView=connections", baseUrl).toString(), { waitUntil: "domcontentloaded" });
@@ -132,8 +142,17 @@ async function verifyTaskingBrowser(baseUrl, cookie) {
     assert.equal(await page.locator(".tasking-graph__node").count(), 2, "Connections must lay out persisted records without synthetic coordinates");
     const width = await page.evaluate(() => ({ viewport: window.innerWidth, scroll: document.documentElement.scrollWidth }));
     assert.ok(width.scroll <= width.viewport, `Tasking Agent API desktop projection overflowed: ${width.scroll}px > ${width.viewport}px`);
-    mkdirSync("test-results", { recursive: true });
     await page.screenshot({ path: resolve("test-results/tasking-agent-api-desktop.png"), fullPage: true });
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto(new URL("#/tasking?taskingView=files", baseUrl).toString(), { waitUntil: "domcontentloaded" });
+    await page.getByText("File intelligence", { exact: true }).waitFor();
+    const mobileBounds = await page.evaluate(() => ({ viewport: window.innerWidth, scroll: document.documentElement.scrollWidth }));
+    assert.ok(mobileBounds.scroll <= mobileBounds.viewport, `Tasking file analytics mobile page overflowed: ${mobileBounds.scroll}px > ${mobileBounds.viewport}px`);
+    const tableBounds = await page.locator(".tasking-file-table").evaluate((node) => ({ client: node.clientWidth, scroll: node.scrollWidth }));
+    assert.ok(tableBounds.scroll > tableBounds.client, "Dense file inventory should scroll inside its bounded table on mobile");
+    await page.goto(new URL("#/tasking?taskingView=files&taskingFileType=invalid&taskingFileRelation=invalid&taskingFileSort=invalid", baseUrl).toString(), { waitUntil: "domcontentloaded" });
+    await page.locator("[data-tasking-file-row]").waitFor();
+    assert.equal(await page.locator("[data-tasking-file-row]").count(), 1, "Invalid file filters must fall back to the complete bounded inventory");
     assert.deepEqual(errors, [], `Tasking Agent API browser errors: ${errors.join(" | ")}`);
     await context.close();
   } finally {

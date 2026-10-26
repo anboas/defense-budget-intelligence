@@ -1,0 +1,33 @@
+.tasking-file-intelligence { min-width: 0; }
+.tasking-file-analytics { display: grid; gap: 7px; padding: 8px; border-bottom: 1px solid var(--if-border); background: var(--if-surface-subtle); }
+.tasking-file-metrics,
+.tasking-file-distributions { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 6px; }
+.tasking-file-distributions { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+.tasking-file-metric,
+.tasking-file-distributions > section { min-width: 0; border: 1px solid var(--if-border); background: var(--if-surface); }
+.tasking-file-metric { display: grid; padding: 7px; }
+.tasking-file-metric span,
+.tasking-file-metric small,
+.tasking-file-bars small { color: var(--if-fg-muted); font-size: 10px; }
+.tasking-file-metric strong { font-size: var(--if-font-size-lg); }
+.tasking-file-distributions h4 { margin: 0; padding: 7px; border-bottom: 1px solid var(--if-border); font-size: var(--if-font-size-xs); }
+.tasking-file-bars > * { display: flex; justify-content: space-between; gap: 7px; min-height: 32px; padding: 5px 7px; border: 0; border-bottom: 1px solid var(--if-border-soft); background: transparent; color: var(--if-fg); text-align: left; }
+.tasking-file-bars > button { width: 100%; cursor: pointer; }
+.tasking-file-bars > button.is-selected { background: var(--if-surface-selected); }
+.tasking-file-controls { padding: 7px; border-bottom: 1px solid var(--if-border); }
+.tasking-file-table { max-width: 100%; overflow-x: auto; }
+.tasking-file-table__head,
+.tasking-file-table > button { display: grid; grid-template-columns: minmax(210px, 1.4fr) 90px 75px 100px 90px 120px; align-items: center; min-width: 760px; }
+.tasking-file-table__head { min-height: 32px; background: var(--if-surface-subtle); color: var(--if-fg-muted); font-size: 10px; font-weight: 800; text-transform: uppercase; }
+.tasking-file-table__head > span,
+.tasking-file-table > button > span { min-width: 0; padding: 7px; }
+.tasking-file-table > button { width: 100%; min-height: 48px; padding: 0; border: 0; border-top: 1px solid var(--if-border); background: var(--if-surface); color: var(--if-fg); text-align: left; cursor: pointer; }
+.tasking-file-table > button:hover,
+.tasking-file-table > button.is-selected { background: var(--if-surface-selected); }
+.tasking-file-table > button > span:first-child { display: flex; align-items: center; gap: 7px; }
+.tasking-file-table > button > span:first-child > span,
+.tasking-file-table > button > span:not(:first-child),
+.tasking-file-table time { display: grid; min-width: 0; }
+.tasking-file-table strong,
+.tasking-file-table small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tasking-file-table small { color: var(--if-fg-muted); font-size: 10px; }
