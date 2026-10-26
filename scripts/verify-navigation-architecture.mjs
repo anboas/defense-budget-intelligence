@@ -19,8 +19,9 @@ for (const tabId of ["tasks", "event-discovery", "connections", "domain-model", 
 assert.equal(navigationContext("awards").workspace?.id, "funding", "Awards belongs to Funding");
 assert.equal(navigationContext("map").workspace?.id, "intelligence", "Geography belongs to Intelligence");
 assert.equal(navigationContext("actions").workspace?.id, "today", "Human Actions belongs to Today");
-assert.equal(navigationContext("tasking", "#/tasking?taskingView=files").workspace?.id, "tasking", "Tasking owns its dedicated primary workspace");
-assert.equal(navigationContext("tasking", "#/tasking?taskingView=files").view?.id, "files", "Tasking query state must select the Files view");
+assert.equal(navigationContext("tasking", "#/tasking?taskingView=sources").workspace?.id, "tasking", "Tasking owns its dedicated primary workspace");
+assert.equal(navigationContext("tasking", "#/tasking?taskingView=sources").view?.id, "sources", "Tasking query state must select the Sources view");
+assert.deepEqual(PRODUCT_WORKSPACES.find(({ id }) => id === "tasking")?.views.map(({ label }) => label), ["Workstreams", "Tasks", "Sources", "Communications"], "Tasking navigation must be workstream-first and communication-ready");
 assert.equal(navigationContext("tasks").workspace, null, "Technical Automation Runs belongs to Manage, not a product workspace");
 assert.equal(navigationContext("watchlist", "#/budget-spend/watchlist").view?.id, "focus", "The three-pane workspace is the only Today focus owner");
 assert.equal(PRODUCT_WORKSPACES.find(({ id }) => id === "opportunities")?.href, "#/budget-spend/timeline", "Opportunities must open its default Timeline view");

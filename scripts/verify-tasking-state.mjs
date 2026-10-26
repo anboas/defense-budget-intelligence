@@ -3,6 +3,7 @@ import { TASKING_FOUNDATION } from "../src/tasking-foundation-data.js";
 import { D1_AGENT_TASKING_SCHEMA, normalizeSourceItem, normalizeTaskingTask } from "../src/d1-agent-tasking.js";
 import { buildTaskingFileAnalytics, formatTaskingBytes, sortTaskingFiles, taskingFileType } from "../src/tasking-file-analytics.js";
 import { TASKING_TASK_STATUSES, taskingTaskOwnerRequired } from "../src/tasking-model.js";
+import { buildTaskingSourceTree, communicationsForWorkstream, sourceAncestors, sourceIdsForWorkstream, taskingRouteState, workstreamShortName } from "../src/tasking-workspace-support.js";
 
 assert.deepEqual(TASKING_TASK_STATUSES, ["draft", "ready", "in-progress", "waiting", "review", "blocked", "completed"]);
 assert.equal(taskingTaskOwnerRequired("draft"), false);
@@ -60,6 +61,19 @@ assert.equal(fileAnalytics.files.find((file) => file.id === "source-doc").taskTi
 assert.equal(taskingFileType({ name: "Sheet.XLSX" }).id, "spreadsheet");
 assert.equal(formatTaskingBytes(5_500_000), "5.5 MB");
 assert.deepEqual(sortTaskingFiles(fileAnalytics.files, "size-desc").map((file) => file.id), ["source-doc", "source-pdf", "source-notes"]);
+
+const hierarchy = buildTaskingSourceTree([
+  { id: "root", sourceId: "localfs:root", itemType: "folder", name: "Documents", path: "Documents" },
+  { id: "folder", sourceId: "localfs:folder", parentSourceId: "localfs:root", itemType: "folder", name: "Pursuits", path: "Documents/Pursuits" },
+  { id: "file", sourceId: "localfs:file", parentSourceId: "localfs:folder", itemType: "file", name: "Brief.docx", path: "Documents/Pursuits/Brief.docx", recordId: "anchor-1" },
+]);
+assert.deepEqual(hierarchy.map((item) => item.id), ["root"], "Source browser must begin with stable roots instead of a flat expanded list");
+assert.deepEqual([...sourceAncestors(hierarchy, "file")], ["root", "folder"], "Selecting a file must retain its expanded ancestor chain");
+assert.deepEqual([...sourceIdsForWorkstream([{ id: "root", sourceId: "localfs:root", itemType: "folder" }, { id: "file", sourceId: "localfs:file", parentSourceId: "localfs:root", itemType: "file", recordId: "anchor-1" }], [{ id: "anchor-1", workstreamId: "ws-1" }], "ws-1")], ["file", "root"], "Workstream source scope must retain required parent folders");
+assert.equal(workstreamShortName({ name: "Local Sabre File Review" }), "LSFR");
+assert.equal(taskingRouteState("#/tasking?taskingView=connections").section, "interactions", "Legacy Connections links must resolve into scoped interactions");
+assert.equal(taskingRouteState("#/tasking?taskingView=files").view, "sources", "Legacy Files links must resolve into Sources");
+assert.equal(communicationsForWorkstream([{ id: "mail-1", kind: "email", workstreamId: "ws-1" }, { id: "note-1", kind: "note", workstreamId: "ws-1" }], "ws-1").length, 1, "Communications must have one explicit typed owner");
 
 assert.ok(D1_AGENT_TASKING_SCHEMA.some((statement) => statement.includes("dbi_workspace_tasking_objects")), "Tasking schema must persist typed workspace objects");
 assert.ok(D1_AGENT_TASKING_SCHEMA.some((statement) => statement.includes("idx_dbi_tasking_objects_workspace_type")), "Tasking schema must index workspace/type reads");

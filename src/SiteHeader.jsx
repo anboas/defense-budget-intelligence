@@ -99,7 +99,7 @@ export default function SiteHeader({ activeTab, activeTitle, routeHash }) {
     if (context.workspace?.id === "tasking" && activeTab === "tasking" && view.tabId === "tasking") {
       const current = new URLSearchParams(String(routeHash || "").split("?")[1] || "");
       const target = new URLSearchParams(String(view.href).split("?")[1] || "");
-      current.set("taskingView", target.get("taskingView") || "portfolio");
+      current.set("taskingView", target.get("taskingView") || "workstreams");
       return `#/tasking?${current.toString()}`;
     }
     if (context.workspace?.id !== "opportunities" || activeTab !== "spend" || view.tabId !== "spend") return view.href;

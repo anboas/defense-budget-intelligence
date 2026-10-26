@@ -22,21 +22,19 @@ async function verifyViewport(name, viewport, { screenshot = false } = {}) {
     if (response.status() >= 400 && !response.url().endsWith("/api/v1/auth/status")) failedResponses.push(`${response.status()} ${response.url()}`);
   });
 
-  await page.goto(`${baseUrl}#/tasking?taskingView=portfolio`, { waitUntil: "domcontentloaded" });
+  await page.goto(`${baseUrl}#/tasking?taskingView=workstreams`, { waitUntil: "domcontentloaded" });
   await page.locator("[data-tasking-workspace]").waitFor();
-  assert.equal(await page.locator(".tasking-lane").count(), 0, `${name}: static Tasking must not render synthetic lanes`);
-  assert.equal(await page.locator(".tasking-folder-panel").count(), 1, `${name}: expected one source hierarchy owner`);
-  assert.equal(await page.locator(".tasking-context").count(), 1, `${name}: expected one selected-record context owner`);
-  await page.getByText("No work matches this scope", { exact: true }).waitFor();
-  await page.getByText("No source metadata", { exact: true }).waitFor();
+  assert.equal(await page.locator(".tasking-workstream-item").count(), 0, `${name}: static Tasking must not render synthetic workstreams`);
+  assert.equal(await page.locator(".tasking-workstream-rail").count(), 1, `${name}: expected one stable workstream owner`);
+  assert.equal(await page.locator(".tasking-inspector").count(), 1, `${name}: expected one selected-record inspector`);
+  await page.getByText("No workstreams yet", { exact: true }).waitFor();
   const bodyText = await page.locator("body").innerText();
   assert.doesNotMatch(bodyText, /Synthetic foundation|Example mission pursuit|Example owner|Capture brief v0\.2/i, `${name}: demo copy must not ship`);
 
-  await page.goto(`${baseUrl}#/tasking?taskingView=files`, { waitUntil: "domcontentloaded" });
-  await page.getByText("File intelligence", { exact: true }).waitFor();
-  await page.getByText("No files match", { exact: true }).waitFor();
-  await page.goto(`${baseUrl}#/tasking?taskingView=connections`, { waitUntil: "domcontentloaded" });
-  await page.getByText("No relationships recorded", { exact: true }).waitFor();
+  await page.goto(`${baseUrl}#/tasking?taskingView=sources`, { waitUntil: "domcontentloaded" });
+  await page.getByText("No workstreams yet", { exact: true }).waitFor();
+  await page.goto(`${baseUrl}#/tasking?taskingView=communications`, { waitUntil: "domcontentloaded" });
+  await page.getByText("No workstreams yet", { exact: true }).waitFor();
 
   const pageBounds = await page.evaluate(() => ({ width: window.innerWidth, scrollWidth: document.documentElement.scrollWidth }));
   assert.ok(pageBounds.scrollWidth <= pageBounds.width, `${name}: page overflow ${pageBounds.scrollWidth}px > ${pageBounds.width}px`);
