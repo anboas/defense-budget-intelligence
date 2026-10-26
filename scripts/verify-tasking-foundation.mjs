@@ -24,44 +24,25 @@ async function verifyViewport(name, viewport, { screenshot = false } = {}) {
 
   await page.goto(`${baseUrl}#/tasking?taskingView=portfolio`, { waitUntil: "domcontentloaded" });
   await page.locator("[data-tasking-workspace]").waitFor();
-  assert.equal(await page.locator(".tasking-lane").count(), 4, `${name}: expected four workstream lanes`);
-  assert.equal(await page.locator(".tasking-folder-panel").count(), 1, `${name}: expected one folder hierarchy owner`);
+  assert.equal(await page.locator(".tasking-lane").count(), 0, `${name}: static Tasking must not render synthetic lanes`);
+  assert.equal(await page.locator(".tasking-folder-panel").count(), 1, `${name}: expected one source hierarchy owner`);
   assert.equal(await page.locator(".tasking-context").count(), 1, `${name}: expected one selected-record context owner`);
+  await page.getByText("No work matches this scope", { exact: true }).waitFor();
+  await page.getByText("No source metadata", { exact: true }).waitFor();
+  const bodyText = await page.locator("body").innerText();
+  assert.doesNotMatch(bodyText, /Synthetic foundation|Example mission pursuit|Example owner|Capture brief v0\.2/i, `${name}: demo copy must not ship`);
+
+  await page.goto(`${baseUrl}#/tasking?taskingView=files`, { waitUntil: "domcontentloaded" });
+  await page.getByText("No source items match", { exact: true }).waitFor();
+  await page.goto(`${baseUrl}#/tasking?taskingView=connections`, { waitUntil: "domcontentloaded" });
+  await page.getByText("No relationships recorded", { exact: true }).waitFor();
 
   const pageBounds = await page.evaluate(() => ({ width: window.innerWidth, scrollWidth: document.documentElement.scrollWidth }));
   assert.ok(pageBounds.scrollWidth <= pageBounds.width, `${name}: page overflow ${pageBounds.scrollWidth}px > ${pageBounds.width}px`);
 
-  if (name === "desktop") {
-    await page.locator("button.tasking-task-row").filter({ hasText: "Confirm solution owner" }).first().click();
-    assert.match(page.url(), /taskingRecord=task-solution-owner/, "desktop: selected task ID should own route state");
-    fs.mkdirSync(path.resolve("test-results"), { recursive: true });
-    await page.screenshot({ path: path.resolve("test-results/tasking-foundation-desktop-portfolio.png"), fullPage: true });
-    await page.locator('[data-workspace-view="connections"]').click();
-    await page.locator(".tasking-graph").waitFor();
-    assert.match(page.url(), /taskingRecord=task-solution-owner/, "desktop: selection should persist across views");
-    assert.equal(await page.locator(".tasking-relationship-list article").count(), 5, "desktop: relationship list alternative should retain every visible edge");
-    await page.screenshot({ path: path.resolve("test-results/tasking-foundation-desktop-connections.png"), fullPage: true });
-    await page.locator('[data-workspace-view="files"]').click();
-    await page.locator(".tasking-file-table").waitFor();
-    assert.match(page.url(), /taskingRecord=task-solution-owner/, "desktop: selection should persist into the file view");
-    await page.screenshot({ path: path.resolve("test-results/tasking-foundation-desktop-files.png"), fullPage: true });
-
-    await page.goto(`${baseUrl}#/tasking?taskingView=portfolio&taskingRecord=task-solution-owner`, { waitUntil: "domcontentloaded" });
-    await page.locator("[data-tasking-task-editor]").waitFor();
-    await page.locator("[data-tasking-owner-input]").fill("Persistent verification owner");
-    await page.locator("[data-tasking-task-editor] button[type=submit]").click();
-    await page.getByText("Task update saved to this workspace.").waitFor();
-    await page.reload({ waitUntil: "domcontentloaded" });
-    await page.locator("[data-tasking-task-editor]").waitFor();
-    assert.equal(await page.locator("[data-tasking-owner-input]").inputValue(), "Persistent verification owner", "desktop: task mutation should persist across reload");
-    await page.locator("[data-tasking-task-editor] button").filter({ hasText: "Reset" }).click();
-    await page.getByText("Task reset to the foundation state.").waitFor();
-    assert.equal(await page.locator("[data-tasking-owner-input]").inputValue(), "Example owner", "desktop: reset should restore the foundation value");
-  }
-
   if (screenshot) {
     fs.mkdirSync(path.resolve("test-results"), { recursive: true });
-    await page.screenshot({ path: path.resolve(`test-results/tasking-foundation-${name}.png`), fullPage: true });
+    await page.screenshot({ path: path.resolve(`test-results/tasking-empty-${name}.png`), fullPage: true });
   }
 
   assert.deepEqual(errors, [], `${name}: browser errors: ${errors.join(" | ")}`);
@@ -73,7 +54,7 @@ async function verifyViewport(name, viewport, { screenshot = false } = {}) {
 try {
   await verifyViewport("desktop", { width: 1440, height: 1000 }, { screenshot: true });
   await verifyViewport("mobile", { width: 390, height: 844 });
-  console.log("Tasking foundation verification passed", results);
+  console.log("Tasking empty-state verification passed", results);
 } finally {
   await browser.close();
 }

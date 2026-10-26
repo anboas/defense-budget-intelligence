@@ -1,5 +1,5 @@
 import { TASKING_FOUNDATION } from "./tasking-foundation-data.js";
-import { mergeTaskingTasks, TASKING_TASK_STATUSES, taskingFoundationTask, taskingTaskFromRow, taskingTaskMutation, taskingTaskOwnerRequired } from "./tasking-model.js";
+import { TASKING_TASK_STATUSES, taskingTaskOwnerRequired } from "./tasking-model.js";
 import { cleanText } from "./security-policy.js";
 
 export const TASKING_AGENT_SCOPES = Object.freeze(["tasking:read", "tasking:write"]);
@@ -25,7 +25,7 @@ export const D1_AGENT_TASKING_SCHEMA = Object.freeze([
 ]);
 
 const RECORD_TYPES = new Set(["workstream", "anchor", "context"]);
-const SOURCE_PROVIDER = "onedrive";
+const SOURCE_PROVIDERS = new Set(["localfs", "onedrive"]);
 const MAX_BATCH_ITEMS = 50;
 
 function objectId(value) {
@@ -142,14 +142,14 @@ function normalizeRelationship(body = {}, current = null) {
   return { payload };
 }
 
-function normalizeSourceItem(body = {}, current = null) {
-  const provider = cleanText(body.provider ?? current?.provider ?? SOURCE_PROVIDER, 40).toLowerCase();
+export function normalizeSourceItem(body = {}, current = null) {
+  const provider = cleanText(body.provider ?? current?.provider ?? "localfs", 40).toLowerCase();
   const sourceId = cleanText(body.sourceId ?? current?.sourceId, 500);
   const itemType = cleanText(body.itemType ?? body.kind ?? current?.itemType, 20).toLowerCase();
   const webUrlInput = body.webUrl ?? current?.webUrl ?? "";
   const lastModifiedInput = body.lastModifiedAt ?? current?.lastModifiedAt ?? "";
-  if (provider !== SOURCE_PROVIDER) return { error: "Only normalized OneDrive source items are supported" };
-  if (!sourceId || !["file", "folder"].includes(itemType)) return { error: "OneDrive sourceId and itemType are required" };
+  if (!SOURCE_PROVIDERS.has(provider)) return { error: "Source provider must be localfs or onedrive" };
+  if (!sourceId || !["file", "folder"].includes(itemType)) return { error: "Source ID and item type are required" };
   if (webUrlInput && !cleanWebUrl(webUrlInput)) return { error: "Source webUrl must be a credential-free HTTPS URL" };
   if (lastModifiedInput && !cleanIso(lastModifiedInput)) return { error: "Source lastModifiedAt must be a valid date" };
   const payload = {
@@ -171,7 +171,7 @@ function normalizeSourceItem(body = {}, current = null) {
     summary: cleanText(body.summary ?? current?.summary, 2_000),
     recordId: objectId(body.recordId ?? current?.recordId),
   };
-  return payload.name && payload.path ? { payload, sourceKey: sourceId } : { error: "OneDrive source name and path are required" };
+  return payload.name && payload.path ? { payload, sourceKey: sourceId } : { error: "Source name and path are required" };
 }
 
 async function rows(db, workspaceId, type = "", includeDeleted = false) {
@@ -223,26 +223,18 @@ async function deleteObject(db, principal, id, expected) {
 
 function writeResult(result, deps) {
   if (result.typeConflict) return deps.error("object_type_conflict", "This ID is already used by another Tasking object type", 409, undefined, { current: result.typeConflict });
-  if (result.deleted) return deps.error("object_deleted", "This Tasking object is deleted; use the OneDrive sync route to restore source items", 409, undefined, { current: result.deleted });
+  if (result.deleted) return deps.error("object_deleted", "This Tasking object is deleted; use the source sync route to restore source items", 409, undefined, { current: result.deleted });
   if (Object.hasOwn(result, "conflict")) return deps.error("version_conflict", "Tasking state changed since the supplied version", 409, undefined, { current: result.conflict });
   return null;
 }
 
-async function foundationOverrides(db, workspaceId) {
-  const result = await db.prepare("SELECT * FROM dbi_workspace_tasking_tasks WHERE workspace_id = ? ORDER BY updated_at DESC").bind(workspaceId).all();
-  return (result.results || []).map(taskingTaskFromRow).filter(Boolean);
-}
-
 async function snapshot(db, workspaceId) {
-  const [overrides, objects] = await Promise.all([foundationOverrides(db, workspaceId), rows(db, workspaceId)]);
+  const objects = await rows(db, workspaceId);
   const byType = (type) => objects.filter((item) => item.type === type);
   const sourceItems = byType("source_item");
-  const relationships = [...TASKING_FOUNDATION.relationships, ...byType("relationship")];
-  const tasks = [
-    ...mergeTaskingTasks(overrides).map((task) => ({ ...task, foundation: true })),
-    ...byType("task").map((task) => ({ ...task, taskId: task.id, persisted: true, foundation: false })),
-  ];
-  const anchors = [...TASKING_FOUNDATION.anchors, ...byType("anchor")].map((anchor) => ({
+  const relationships = byType("relationship");
+  const tasks = byType("task").map((task) => ({ ...task, taskId: task.id, persisted: true }));
+  const anchors = byType("anchor").map((anchor) => ({
     ...anchor,
     taskIds: tasks.filter((task) => task.anchorId === anchor.id).map((task) => task.id),
     connectionIds: [...new Set([
@@ -253,22 +245,43 @@ async function snapshot(db, workspaceId) {
     dueLabel: anchor.dueLabel || "No date",
     updatedLabel: anchor.updatedLabel || (anchor.updatedAt ? "Workspace updated" : "Observed"),
   }));
-  const workstreams = [...TASKING_FOUNDATION.workstreams, ...byType("workstream")].map((workstream) => ({
+  const workstreams = byType("workstream").map((workstream) => ({
     ...workstream,
     anchors: anchors.filter((anchor) => anchor.workstreamId === workstream.id).map((anchor) => anchor.id),
   }));
+  const contextRecords = byType("context");
+  const linkedSourceItems = sourceItems.filter((item) => item.recordId).length;
+  const sourceFiles = sourceItems.filter((item) => item.itemType === "file").length;
+  const sourceFolders = sourceItems.filter((item) => item.itemType === "folder").length;
+  const observedAt = objects.reduce((latest, item) => !latest || item.updatedAt > latest ? item.updatedAt : latest, null);
+  const counts = {
+    workstreams: workstreams.length,
+    anchors: anchors.length,
+    tasks: tasks.length,
+    contextRecords: contextRecords.length,
+    relationships: relationships.length,
+    sourceItems: sourceItems.length,
+    sourceFiles,
+    sourceFolders,
+    linkedSourceItems,
+  };
   return {
     metadata: {
       ...TASKING_FOUNDATION.metadata,
-      mode: objects.length || overrides.length ? "workspace" : TASKING_FOUNDATION.metadata.mode,
+      mode: objects.length ? "workspace" : TASKING_FOUNDATION.metadata.mode,
+      label: objects.length ? "Workspace tasking" : TASKING_FOUNDATION.metadata.label,
+      observedAt,
       sourceHealth: sourceItems.length ? "connected" : TASKING_FOUNDATION.metadata.sourceHealth,
-      coverage: sourceItems.length ? `${sourceItems.length} normalized OneDrive source item${sourceItems.length === 1 ? "" : "s"} observed through the Agent API.` : TASKING_FOUNDATION.metadata.coverage,
+      coverage: sourceItems.length
+        ? `${sourceItems.length} normalized source item${sourceItems.length === 1 ? "" : "s"}; ${linkedSourceItems} linked to workspace records.`
+        : objects.length ? "Workspace records are available; no source metadata is connected." : TASKING_FOUNDATION.metadata.coverage,
+      counts,
     },
-    folders: TASKING_FOUNDATION.folders,
+    folders: [],
     workstreams,
     anchors,
     tasks,
-    contextRecords: [...TASKING_FOUNDATION.contextRecords, ...byType("context")],
+    contextRecords,
     relationships,
     sourceItems,
   };
@@ -307,7 +320,7 @@ async function customCollectionResponse(request, db, principal, type, segments, 
   }
   if (request.method === "DELETE" && id) {
     const current = await row(db, principal.workspaceId, id);
-    if (current && current.type !== "source_item") return deps.error("object_type_conflict", "This ID belongs to another Tasking object type", 409, undefined, { current });
+    if (current && current.type !== type) return deps.error("object_type_conflict", "This ID belongs to another Tasking object type", 409, undefined, { current });
     const result = await deleteObject(db, principal, id, deps.expectedVersion(request));
     if (result.missing) return new Response(null, { status: 204 });
     if (result.precondition) return deps.error("precondition_required", "If-Match with the current Tasking object version is required", 428);
@@ -318,48 +331,11 @@ async function customCollectionResponse(request, db, principal, type, segments, 
   return deps.error("method_not_allowed", "Method not allowed", 405);
 }
 
-async function foundationTaskResponse(request, db, principal, taskId, deps) {
-  const rowValue = await db.prepare("SELECT * FROM dbi_workspace_tasking_tasks WHERE workspace_id = ? AND task_id = ?").bind(principal.workspaceId, taskId).first();
-  const existing = taskingTaskFromRow(rowValue);
-  if (request.method === "GET") return deps.json(existing ? { ...taskingFoundationTask(taskId), ...existing, id: taskId, persisted: true } : { ...taskingFoundationTask(taskId), version: 0, persisted: false });
-  if (request.method === "PATCH") {
-    const body = await deps.safeJson(request);
-    const expected = deps.expectedVersion(request, body);
-    if (expected === null) return deps.error("precondition_required", "If-Match with the current task version is required", 428);
-    if (expected !== Number(existing?.version || 0)) return deps.error("version_conflict", "Task changed since the supplied version", 409, undefined, { current: existing });
-    const mutation = taskingTaskMutation(taskId, { ...body, version: expected }, existing);
-    if (mutation.error) return deps.error("invalid_task", mutation.error, 400);
-    const task = mutation.task; const now = new Date().toISOString(); const next = expected + 1;
-    const changed = existing
-      ? await db.prepare(`UPDATE dbi_workspace_tasking_tasks SET title=?,description=?,status=?,owner=?,acceptance=?,version=?,updated_by=?,updated_at=?
-          WHERE workspace_id=? AND task_id=? AND version=?`).bind(task.title, task.description, task.status, task.owner, task.acceptance, next, principal.actorId || principal.id, now, principal.workspaceId, taskId, expected).run()
-      : await db.prepare(`INSERT OR IGNORE INTO dbi_workspace_tasking_tasks
-          (workspace_id,task_id,title,description,status,owner,acceptance,version,updated_by,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?)`)
-          .bind(principal.workspaceId, taskId, task.title, task.description, task.status, task.owner, task.acceptance, next, principal.actorId || principal.id, now, now).run();
-    if (!Number(changed?.meta?.changes || 0)) return deps.error("version_conflict", "Task changed since the supplied version", 409);
-    const stored = await db.prepare("SELECT * FROM dbi_workspace_tasking_tasks WHERE workspace_id = ? AND task_id = ?").bind(principal.workspaceId, taskId).first();
-    await deps.recordActivity(db, principal, "tasking_task_updated", "task", taskId, { version: next });
-    return deps.json({ ...taskingFoundationTask(taskId), ...taskingTaskFromRow(stored), id: taskId, persisted: true });
-  }
-  if (request.method === "DELETE") {
-    if (!existing) return new Response(null, { status: 204 });
-    const expected = deps.expectedVersion(request);
-    if (expected === null) return deps.error("precondition_required", "If-Match with the current task version is required", 428);
-    if (expected !== existing.version) return deps.error("version_conflict", "Task changed since the supplied version", 409, undefined, { current: existing });
-    const changed = await db.prepare("DELETE FROM dbi_workspace_tasking_tasks WHERE workspace_id=? AND task_id=? AND version=?").bind(principal.workspaceId, taskId, expected).run();
-    if (!Number(changed?.meta?.changes || 0)) return deps.error("version_conflict", "Task changed since the supplied version", 409);
-    await deps.recordActivity(db, principal, "tasking_task_reset", "task", taskId, {});
-    return new Response(null, { status: 204 });
-  }
-  return deps.error("method_not_allowed", "Method not allowed", 405);
-}
-
 async function tasksResponse(request, db, principal, segments, deps) {
   const taskId = objectId(decodeURIComponent(segments[1] || ""));
-  if (taskId && taskingFoundationTask(taskId)) return foundationTaskResponse(request, db, principal, taskId, deps);
   if (request.method === "GET" && !taskId) {
-    const [overrides, custom] = await Promise.all([foundationOverrides(db, principal.workspaceId), rows(db, principal.workspaceId, "task")]);
-    return deps.json([...mergeTaskingTasks(overrides), ...custom.map((task) => ({ ...task, taskId: task.id, persisted: true }))], 200, { total: TASKING_FOUNDATION.tasks.length + custom.length });
+    const tasks = await rows(db, principal.workspaceId, "task");
+    return deps.json(tasks.map((task) => ({ ...task, taskId: task.id, persisted: true })), 200, { total: tasks.length });
   }
   return customCollectionResponse(request, db, principal, "task", segments, deps);
 }
@@ -388,54 +364,54 @@ async function sourceItemsResponse(request, db, principal, segments, deps) {
   if (request.method === "GET" && !id) {
     const includeDeleted = new URL(request.url).searchParams.get("includeDeleted") === "1";
     const items = await rows(db, principal.workspaceId, "source_item", includeDeleted);
-    return deps.json(items, 200, { provider: SOURCE_PROVIDER, total: items.length, includeDeleted });
+    return deps.json(items, 200, { providers: [...new Set(items.map((item) => item.provider))], total: items.length, includeDeleted });
   }
   if (request.method === "POST" && segments[1] === "batch") return deps.idempotent(db, principal, request, async () => {
     const body = await deps.safeJson(request);
     const items = Array.isArray(body?.items) ? body.items : [];
-    if (!items.length || items.length > MAX_BATCH_ITEMS) return deps.error("invalid_source_batch", `OneDrive source batches must contain 1 to ${MAX_BATCH_ITEMS} items`, 400);
+    if (!items.length || items.length > MAX_BATCH_ITEMS) return deps.error("invalid_source_batch", `Source batches must contain 1 to ${MAX_BATCH_ITEMS} items`, 400);
     const normalized = items.map((item) => ({ id: objectId(item?.id), result: normalizeSourceItem(item) }));
     const invalid = normalized.find((item) => !item.id || item.result.error);
-    if (invalid) return deps.error("invalid_source_item", invalid.result.error || "Every OneDrive item requires a stable ID", 400);
-    if (new Set(normalized.map((item) => item.id)).size !== normalized.length || new Set(normalized.map((item) => item.result.sourceKey)).size !== normalized.length) return deps.error("duplicate_source_item", "OneDrive batch IDs and sourceIds must be unique", 400);
+    if (invalid) return deps.error("invalid_source_item", invalid.result.error || "Every source item requires a stable ID", 400);
+    if (new Set(normalized.map((item) => item.id)).size !== normalized.length || new Set(normalized.map((item) => `${item.result.payload.provider}:${item.result.sourceKey}`)).size !== normalized.length) return deps.error("duplicate_source_item", "Source batch IDs and provider/sourceId pairs must be unique", 400);
     const current = await Promise.all(normalized.map(async (item) => ({
       ...item,
       byId: await row(db, principal.workspaceId, item.id, true),
       bySource: objectFromRow(await db.prepare("SELECT * FROM dbi_workspace_tasking_objects WHERE workspace_id=? AND source_system=? AND source_key=?")
-        .bind(principal.workspaceId, SOURCE_PROVIDER, item.result.sourceKey).first()),
+        .bind(principal.workspaceId, item.result.payload.provider, item.result.sourceKey).first()),
     })));
     const conflict = current.find((item) => (item.byId && item.byId.type !== "source_item") || (item.bySource && item.bySource.id !== item.id));
-    if (conflict) return deps.error("source_identity_conflict", "A OneDrive ID or sourceId is already bound to another Tasking object", 409, undefined, { current: conflict.byId || conflict.bySource });
+    if (conflict) return deps.error("source_identity_conflict", "A source ID or provider/sourceId pair is already bound to another Tasking object", 409, undefined, { current: conflict.byId || conflict.bySource });
     const now = new Date().toISOString();
     await db.batch(current.map((item) => item.byId
       ? db.prepare(`UPDATE dbi_workspace_tasking_objects SET payload_json=?,version=version+1,source_system=?,source_key=?,updated_at=?,deleted_at=''
-          WHERE workspace_id=? AND object_id=?`).bind(JSON.stringify(item.result.payload), SOURCE_PROVIDER, item.result.sourceKey, now, principal.workspaceId, item.id)
+          WHERE workspace_id=? AND object_id=?`).bind(JSON.stringify(item.result.payload), item.result.payload.provider, item.result.sourceKey, now, principal.workspaceId, item.id)
       : db.prepare(`INSERT INTO dbi_workspace_tasking_objects
           (workspace_id,object_id,object_type,payload_json,version,source_system,source_key,created_by_type,created_by,created_at,updated_at,deleted_at)
-          VALUES (?,?,'source_item',?,1,?,?,?,?,?,?, '')`).bind(principal.workspaceId, item.id, JSON.stringify(item.result.payload), SOURCE_PROVIDER,
+          VALUES (?,?,'source_item',?,1,?,?,?,?,?,?, '')`).bind(principal.workspaceId, item.id, JSON.stringify(item.result.payload), item.result.payload.provider,
           item.result.sourceKey, principal.type, principal.actorId || principal.id, now, now)));
     const stored = await Promise.all(normalized.map((item) => row(db, principal.workspaceId, item.id)));
-    await deps.recordActivity(db, principal, "tasking_onedrive_batch_synced", "source_item", "", { itemCount: stored.length });
-    return deps.json({ items: stored }, 200, { provider: SOURCE_PROVIDER, accepted: stored.length });
+    await deps.recordActivity(db, principal, "tasking_source_batch_synced", "source_item", "", { itemCount: stored.length });
+    return deps.json({ items: stored }, 200, { providers: [...new Set(stored.map((item) => item.provider))], accepted: stored.length });
   });
   if (request.method === "PUT" && id) return deps.idempotent(db, principal, request, async () => {
     const body = await deps.safeJson(request); const normalized = normalizeSourceItem(body);
     if (normalized.error) return deps.error("invalid_source_item", normalized.error, 400);
-    const result = await storeObject(db, principal, { id, type: "source_item", payload: normalized.payload, sourceSystem: SOURCE_PROVIDER, sourceKey: normalized.sourceKey, allowRestore: true });
+    const result = await storeObject(db, principal, { id, type: "source_item", payload: normalized.payload, sourceSystem: normalized.payload.provider, sourceKey: normalized.sourceKey, allowRestore: true });
     const error = writeResult(result, deps); if (error) return error;
-    await deps.recordActivity(db, principal, "tasking_onedrive_item_synced", "source_item", id, { version: result.object.version });
+    await deps.recordActivity(db, principal, "tasking_source_item_synced", "source_item", id, { version: result.object.version });
     return deps.json(result.object, result.object.version === 1 ? 201 : 200);
   });
   if (request.method === "GET" && id) {
     const item = await row(db, principal.workspaceId, id, new URL(request.url).searchParams.get("includeDeleted") === "1");
-    return item?.type === "source_item" ? deps.json(item) : deps.error("source_item_not_found", "OneDrive source item not found", 404);
+    return item?.type === "source_item" ? deps.json(item) : deps.error("source_item_not_found", "Source item not found", 404);
   }
   if (request.method === "DELETE" && id) {
     const result = await deleteObject(db, principal, id, deps.expectedVersion(request));
     if (result.missing) return new Response(null, { status: 204 });
     if (result.precondition) return deps.error("precondition_required", "If-Match with the current source item version is required", 428);
     const error = writeResult(result, deps); if (error) return error;
-    await deps.recordActivity(db, principal, "tasking_onedrive_item_deleted", "source_item", id, { version: result.object.version });
+    await deps.recordActivity(db, principal, "tasking_source_item_deleted", "source_item", id, { version: result.object.version });
     return new Response(null, { status: 204 });
   }
   return deps.error("method_not_allowed", "Method not allowed", 405);

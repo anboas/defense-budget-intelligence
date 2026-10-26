@@ -3202,12 +3202,12 @@ async function agentApiResponse(request, env, db) {
     } else if (await rateLimited(db, principal)) {
       response = agentError("rate_limited", `Limit is ${AGENT_RATE_LIMIT} requests per minute`, 429, requestId);
     } else if (resource === "capabilities" && request.method === "GET") response = agentJson({
-      principal, scopes: principal.scopes, rateLimitPerMinute: AGENT_RATE_LIMIT, contractVersion: "1.2.1",
+      principal, scopes: principal.scopes, rateLimitPerMinute: AGENT_RATE_LIMIT, contractVersion: "1.3.0",
       resources: [
         "records", "analytics", "tracking", "record-dispositions", "record-groups", "record-intelligence", "events", "event-catalog", "event-categories",
         "activity", "api-requests", "integrations", "tasking", ...AGENT_INTELLIGENCE_RESOURCES,
       ],
-      writeBoundary: "Published intelligence snapshots remain immutable. Tasking writes are workspace-scoped, versioned, and audited. OneDrive access stays with the calling agent; this API accepts only normalized item metadata and credential-free HTTPS links.",
+      writeBoundary: "Published intelligence snapshots remain immutable. Tasking writes are workspace-scoped, versioned, and audited. Source access stays with the calling agent; this API accepts only normalized item metadata and credential-free HTTPS links.",
     }, 200, { requestId });
     else if (resource === "openapi.json" && request.method === "GET") response = Response.json(agentOpenApiDocument(new URL(request.url).origin, SESSION_COOKIE), { headers: { "cache-control": "no-store" } });
     else if (resource === "records") response = await recordsResponse(request, env, db, principal, segments);
