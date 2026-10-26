@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { TASKING_FOUNDATION } from "../src/tasking-foundation-data.js";
+import { TASKING_FALLBACK_WORKSPACE, taskingFallbackEligible } from "../src/tasking-fallback-data.js";
 import { D1_AGENT_TASKING_SCHEMA, normalizeSourceItem, normalizeTaskingTask } from "../src/d1-agent-tasking.js";
 import { buildTaskingFileAnalytics, formatTaskingBytes, sortTaskingFiles, taskingFileType } from "../src/tasking-file-analytics.js";
 import { TASKING_TASK_STATUSES, taskingTaskOwnerRequired } from "../src/tasking-model.js";
@@ -14,6 +15,19 @@ for (const collection of ["folders", "workstreams", "anchors", "tasks", "context
 }
 assert.equal(TASKING_FOUNDATION.metadata.mode, "empty");
 assert.equal(TASKING_FOUNDATION.metadata.counts.sourceItems, 0);
+assert.equal(TASKING_FALLBACK_WORKSPACE.metadata.mode, "template-fallback");
+assert.equal(TASKING_FALLBACK_WORKSPACE.workstreams.length, 2);
+assert.equal(TASKING_FALLBACK_WORKSPACE.tasks.length, 6);
+assert.equal(TASKING_FALLBACK_WORKSPACE.sourceItems.filter((item) => item.itemType === "file").length, 6);
+assert.equal(TASKING_FALLBACK_WORKSPACE.contextRecords.length, 4);
+assert.equal(TASKING_FALLBACK_WORKSPACE.relationships.length, 7);
+assert.ok(TASKING_FALLBACK_WORKSPACE.tasks.every((task) => task.id.startsWith("template-")));
+assert.ok(TASKING_FALLBACK_WORKSPACE.sourceItems.every((item) => item.path.startsWith("Template workspace/")));
+assert.equal(taskingFallbackEligible({ status: 500 }), true);
+assert.equal(taskingFallbackEligible({ status: 429 }), true);
+assert.equal(taskingFallbackEligible(new TypeError("network")), true);
+assert.equal(taskingFallbackEligible({ status: 401 }), false);
+assert.equal(taskingFallbackEligible({ status: 403 }), false);
 
 const draft = normalizeTaskingTask({
   title: "Review source-backed action",

@@ -22,6 +22,9 @@ assert.match(source, /idx_dbi_event_ai_jobs_completed[^\n]+completed_at/, "Event
 assert.match(source, /idx_dbi_event_ai_jobs_workspace_user_time[^\n]+workspace_id, user_id, created_at DESC/, "Task Center needs an exact workspace/user/time index");
 assert.match(source, /idx_dbi_login_attempts_time[^\n]+attempted_at/, "Login-attempt retention needs a cutoff index");
 assert.match(source, /WITH recent_jobs AS[\s\S]+LIMIT 20[\s\S]+idx_dbi_api_request_log_trace_kind_time|WITH recent_jobs AS/, "Task Center must bound jobs before diagnostic lookup");
+const apiRequestRange = sourceBetween("async function apiRequestsResponse", "async function integrationsResponse");
+assert.match(apiRequestRange, /sampleLimit = Math\.max\(limit, API_LATENCY_SAMPLE_LIMIT\)/, "API latency summaries must use a fixed recent sample");
+assert.doesNotMatch(apiRequestRange, /ORDER BY latency_ms ASC LIMIT 1 OFFSET/, "API latency summaries must not sort and offset across the retained request log");
 assert.doesNotMatch(sourceBetween("async function recordApiRequest", "function cleanDate"), /DELETE FROM dbi_api_request_log/, "API-log retention must not scan after every insert");
 assert.doesNotMatch(sourceBetween("async function recordLoginAttempt", "async function statusResponse"), /DELETE FROM dbi_login_attempts/, "Login retention must not scan after every attempt");
 assert.match(sourceBetween("async function statusResponse", "async function claimResponse"), /runD1RetentionMaintenance/, "Daily retention maintenance must be attached to the app bootstrap route");
@@ -140,4 +143,4 @@ try {
   rmSync(persistPath, { recursive: true, force: true });
 }
 
-console.log("Verified D1 query efficiency: bounded Task Center lookup, indexed trace diagnostics, indexed active acquisition pagination and retention, no per-write pruning.");
+console.log("Verified D1 query efficiency: bounded request-latency sample, bounded Task Center lookup, indexed trace diagnostics, indexed active acquisition pagination and retention, no per-write pruning.");

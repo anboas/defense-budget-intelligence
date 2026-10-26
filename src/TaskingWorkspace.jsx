@@ -10,9 +10,11 @@ import {
   Mail,
   MessageCircle,
   Plus,
+  RefreshCw,
   Search,
   Send,
   Target,
+  TriangleAlert,
   Users,
 } from "lucide-react";
 import { ControlPageBody } from "control-surface-ui/react";
@@ -994,6 +996,7 @@ export default function TaskingWorkspace({ routeHash = "" }) {
       className="tasking-workspace"
       data-tasking-workspace
       data-tasking-view={routed.view}
+      data-tasking-data-mode={taskState.connectionState}
     >
       <ControlWorkbenchHeader
         eyebrow="Workspace operations"
@@ -1032,6 +1035,52 @@ export default function TaskingWorkspace({ routeHash = "" }) {
         metricLabel="Tasking workspace summary"
       />
       <ControlPageBody compact>
+        {taskState.isFallback ? (
+          <section
+            className="if-alert if-alert--warning tasking-fallback-banner"
+            data-tasking-fallback
+            role="status"
+          >
+            <TriangleAlert size={18} />
+            <span>
+              <strong>Live workspace temporarily unavailable</strong>{" "}
+              <small>
+                You are exploring read-only template data. Nothing shown here
+                came from D1 and no template change can be saved.
+              </small>
+            </span>
+            <button
+              type="button"
+              className="if-btn if-btn--secondary if-btn--sm"
+              disabled={taskState.connectionState === "retrying"}
+              onClick={() => void taskState.refresh().catch(() => {})}
+            >
+              <RefreshCw size={14} />
+              {taskState.connectionState === "retrying"
+                ? "Retrying…"
+                : "Retry live data"}
+            </button>
+          </section>
+        ) : null}
+        {taskState.connectionState === "error" ? (
+          <section
+            className="if-alert if-alert--danger tasking-fallback-banner"
+            role="alert"
+          >
+            <TriangleAlert size={18} />
+            <span>
+              <strong>Tasking workspace unavailable</strong>{" "}
+              <small>{taskState.connectionError}</small>
+            </span>
+            <button
+              type="button"
+              className="if-btn if-btn--secondary if-btn--sm"
+              onClick={() => void taskState.refresh().catch(() => {})}
+            >
+              <RefreshCw size={14} /> Retry
+            </button>
+          </section>
+        ) : null}
         <div className="tasking-operating-shell">
           <WorkstreamRail
             workstreams={enrichedWorkstreams}
@@ -1063,6 +1112,7 @@ export default function TaskingWorkspace({ routeHash = "" }) {
                   <button
                     type="button"
                     className="if-btn if-btn--primary if-btn--sm"
+                    disabled={!taskState.canWrite}
                     onClick={() => chooseSection("tasks")}
                   >
                     <Plus size={14} />
@@ -1167,8 +1217,16 @@ export default function TaskingWorkspace({ routeHash = "" }) {
             ) : (
               <EmptyState
                 icon={LayoutList}
-                title="No workstreams yet"
-                copy="Create a workstream through the Tasking Agent API to establish the primary operating unit for tasks, files, and communications."
+                title={
+                  taskState.isLoading
+                    ? "Loading live workspace"
+                    : "No workstreams yet"
+                }
+                copy={
+                  taskState.isLoading
+                    ? "Checking the authenticated Tasking workspace before showing any fallback data."
+                    : "Create a workstream through the Tasking Agent API to establish the primary operating unit for tasks, files, and communications."
+                }
               />
             )}
           </main>

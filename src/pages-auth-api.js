@@ -80,7 +80,7 @@ import { D1_RESEARCH_OPERATIONS_SCHEMA, researchOperationsResponse, researchSche
 import { agentOpenApiDocument } from "./agent-api-openapi.js";
 import { catalogEventByIdFromRows } from "./event-catalog.js";
 import { loadD1RecordUniverse } from "./d1-record-universe.js";
-import { apiRequestFromRow } from "./d1-api-observability.js";
+import { apiRequestFromRow, summarizeRecentLatency } from "./d1-api-observability.js";
 import {
   completeEventCatalog,
   eventCatalogResponse,
@@ -101,7 +101,7 @@ export const SESSION_MAX_AGE_SECONDS = 14 * 24 * 60 * 60;
 const MAX_ATTEMPTS = 8;
 const ATTEMPT_WINDOW_MS = 15 * 60 * 1000;
 const RETENTION_MAINTENANCE_INTERVAL_MS = 24 * 60 * 60 * 1000;
-const RETENTION_DAYS = 90;
+const RETENTION_DAYS = 90; const API_LATENCY_SAMPLE_LIMIT = 500;
 const MAX_BODY_BYTES = 16_384;
 const AGENT_API_VERSION = "dbi-agent-v1";
 const AGENT_TOKEN_PREFIX = "dbi_agent_";
@@ -3108,10 +3108,9 @@ async function apiRequestsResponse(request, db, principal) {
   if (provider) { clauses.push("provider = ?"); values.push(provider); }
   if (status) { clauses.push("status = ?"); values.push(status); }
   if (requestKind) { clauses.push("request_kind = ?"); values.push(requestKind); }
-  const where = clauses.join(" AND ");
-  const operational = "request_kind NOT IN ('credential_lifecycle', 'client_error')";
-  const [result, aggregate] = await Promise.all([
-    db.prepare(`SELECT * FROM dbi_api_request_log WHERE ${where} ORDER BY completed_at DESC LIMIT ?`).bind(...values, limit).all(),
+  const where = clauses.join(" AND "); const operational = "request_kind NOT IN ('credential_lifecycle', 'client_error')";
+  const sampleLimit = Math.max(limit, API_LATENCY_SAMPLE_LIMIT); const [result, aggregate] = await Promise.all([
+    db.prepare(`SELECT * FROM dbi_api_request_log WHERE ${where} ORDER BY completed_at DESC LIMIT ?`).bind(...values, sampleLimit).all(),
     db.prepare(`SELECT
       COUNT(*) AS retained,
       SUM(CASE WHEN ${operational} THEN 1 ELSE 0 END) AS requests,
@@ -3130,10 +3129,8 @@ async function apiRequestsResponse(request, db, principal) {
       MAX(completed_at) AS window_end
     FROM dbi_api_request_log WHERE ${where}`).bind(...values).first(),
   ]);
-  const rows = (result.results || []).map(apiRequestFromRow);
-  const latencyCount = Number(aggregate?.latency_count || 0);
-  const percentileOffset = latencyCount ? Math.min(latencyCount - 1, Math.ceil(latencyCount * 0.95) - 1) : 0;
-  const percentile = latencyCount ? await db.prepare(`SELECT latency_ms FROM dbi_api_request_log WHERE ${where} AND ${operational} AND latency_ms > 0 ORDER BY latency_ms ASC LIMIT 1 OFFSET ?`).bind(...values, percentileOffset).first() : null;
+  const sampledRows = (result.results || []).map(apiRequestFromRow); const rows = sampledRows.slice(0, limit);
+  const { p95LatencyMs, latencySampleSize } = summarizeRecentLatency(sampledRows);
   const retained = Number(aggregate?.retained || 0);
   const requests = Number(aggregate?.requests || 0);
   const succeeded = Number(aggregate?.succeeded || 0);
@@ -3151,7 +3148,10 @@ async function apiRequestsResponse(request, db, principal) {
       terminalRequests,
       successRate: terminalRequests ? Math.round((succeeded / terminalRequests) * 1000) / 10 : null,
       averageLatencyMs: Number(aggregate?.average_latency_ms || 0),
-      p95LatencyMs: Number(percentile?.latency_ms || 0),
+      p95LatencyMs,
+      latencySampleSize,
+      latencySampleLimit: API_LATENCY_SAMPLE_LIMIT,
+      latencySampled: Number(aggregate?.latency_count || 0) > latencySampleSize,
       inputTokens: Number(aggregate?.input_tokens || 0),
       outputTokens: Number(aggregate?.output_tokens || 0),
       aiRequests: Number(aggregate?.ai_requests || 0),

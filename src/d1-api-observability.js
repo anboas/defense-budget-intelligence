@@ -40,3 +40,13 @@ export function apiRequestFromRow(row) {
     completedAt: row.completed_at,
   };
 }
+
+export function summarizeRecentLatency(entries = []) {
+  const values = entries
+    .filter((entry) => !["credential_lifecycle", "client_error"].includes(entry.requestKind))
+    .map((entry) => Number(entry.latencyMs || 0))
+    .filter((value) => value > 0)
+    .sort((left, right) => left - right);
+  const offset = values.length ? Math.min(values.length - 1, Math.ceil(values.length * 0.95) - 1) : 0;
+  return { p95LatencyMs: values[offset] || 0, latencySampleSize: values.length };
+}
