@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { D1_TASKING_SCHEMA, taskingResponse } from "../src/d1-tasking.js";
 import { TASKING_TASK_STATUSES, mergeTaskingTasks, taskingTaskMutation, taskingTaskFromRow } from "../src/tasking-model.js";
 
-assert.deepEqual(TASKING_TASK_STATUSES, ["ready", "in-progress", "waiting", "review", "blocked", "completed"]);
+assert.deepEqual(TASKING_TASK_STATUSES, ["draft", "ready", "in-progress", "waiting", "review", "blocked", "completed"]);
 
 const mutation = taskingTaskMutation("task-solution-owner", {
   version: 0,
@@ -13,6 +13,17 @@ const mutation = taskingTaskMutation("task-solution-owner", {
 assert.equal(mutation.error, undefined);
 assert.equal(mutation.task.status, "completed");
 assert.equal(mutation.task.owner, "Verification owner");
+
+const draftMutation = taskingTaskMutation("task-solution-owner", {
+  version: 0,
+  status: "draft",
+  owner: "",
+  acceptance: "Approval remains required before execution",
+});
+assert.equal(draftMutation.error, undefined);
+assert.equal(draftMutation.task.status, "draft");
+assert.equal(draftMutation.task.owner, "");
+assert.equal(taskingTaskMutation("task-solution-owner", { version: 0, status: "ready", owner: "" }).error, "Task owner is required unless status is draft");
 
 assert.equal(taskingTaskMutation("task-solution-owner", { version: 0, status: "invented" }).error, "A valid task status is required");
 assert.equal(taskingTaskMutation("missing-task", { version: 0, status: "ready" }).error, "Task not found");
@@ -85,5 +96,13 @@ const deletedResponse = await taskingResponse(apiRequest("/task-solution-owner?v
 assert.equal(deletedResponse.status, 204);
 assert.equal(db.rows.size, 0);
 assert.equal(activity.length, 2);
+
+const draftResponse = await taskingResponse(apiRequest("/task-solution-owner", { method: "PATCH", headers: { origin: "https://example.test", "content-type": "application/json" }, body: JSON.stringify({ version: 0, status: "draft", owner: "", acceptance: "Approval remains required before execution" }) }), db, deps);
+assert.equal(draftResponse.status, 200);
+assert.equal((await draftResponse.json()).task.owner, "", "Draft persistence must not invent an owner");
+const draftListResponse = await taskingResponse(apiRequest(), db, deps);
+const draftList = await draftListResponse.json();
+assert.equal(draftList.tasks[0].status, "draft");
+assert.equal(draftList.tasks[0].owner, "", "Draft reads must preserve an explicitly blank owner");
 
 console.log("Tasking state verification passed", { taskCount: merged.length, statuses: TASKING_TASK_STATUSES.length, version: updated.version, apiActivity: activity.length });

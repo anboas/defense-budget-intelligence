@@ -1,3 +1,5 @@
+import { TASKING_TASK_STATUSES } from "./tasking-model.js";
+
 export function agentOpenApiDocument(origin, sessionCookie) {
   const security = [{ bearerAuth: [] }, { cookieAuth: [] }];
   const paths = {
@@ -25,8 +27,8 @@ export function agentOpenApiDocument(origin, sessionCookie) {
     "/api/v1/agent/api-requests": { get: { summary: "Read redacted API request diagnostics and usage metadata", security } },
     "/api/v1/agent/integrations": { get: { summary: "Read integration status", security } },
     "/api/v1/agent/tasking": { get: { summary: "Read the complete workspace Tasking projection", security } },
-    "/api/v1/agent/tasking/tasks": { get: { summary: "List foundation and agent-created tasks", security }, post: { summary: "Create a workspace task", security } },
-    "/api/v1/agent/tasking/tasks/{taskId}": { get: { summary: "Read a task", security }, patch: { summary: "Update a task with optimistic versioning", security }, delete: { summary: "Delete a custom task or reset a foundation task", security } },
+    "/api/v1/agent/tasking/tasks": { get: { summary: "List foundation and agent-created tasks", security }, post: { summary: "Create a workspace task", security, requestBody: { required: true, content: { "application/json": { schema: { $ref: "#/components/schemas/TaskingTaskCreate" } } } } } },
+    "/api/v1/agent/tasking/tasks/{taskId}": { get: { summary: "Read a task", security }, patch: { summary: "Update a task with optimistic versioning", security, requestBody: { required: true, content: { "application/json": { schema: { $ref: "#/components/schemas/TaskingTaskPatch" } } } } }, delete: { summary: "Delete a custom task or reset a foundation task", security } },
     "/api/v1/agent/tasking/records": { get: { summary: "List Tasking workstreams, anchors, and context records", security }, post: { summary: "Create a typed Tasking record", security } },
     "/api/v1/agent/tasking/records/{recordId}": { get: { summary: "Read a typed Tasking record", security }, patch: { summary: "Update a typed Tasking record with optimistic versioning", security }, delete: { summary: "Delete a typed Tasking record", security } },
     "/api/v1/agent/tasking/relationships": { get: { summary: "List Tasking relationships", security }, post: { summary: "Create a Tasking relationship", security } },
@@ -55,14 +57,40 @@ export function agentOpenApiDocument(origin, sessionCookie) {
     openapi: "3.1.0",
     info: {
       title: "Defense Budget Intelligence Agent API",
-      version: "1.2.0",
+      version: "1.2.1",
       description: "Authenticated factual evidence, graph traversal, Tasking operations, normalized OneDrive source synchronization, and cited workspace enrichment. Published snapshots remain immutable; Tasking state is workspace-scoped, versioned, and audited.",
     },
     servers: [{ url: origin }],
     paths,
-    components: { securitySchemes: {
-      bearerAuth: { type: "http", scheme: "bearer", bearerFormat: "DBI agent token" },
-      cookieAuth: { type: "apiKey", in: "cookie", name: sessionCookie },
-    } },
+    components: {
+      securitySchemes: {
+        bearerAuth: { type: "http", scheme: "bearer", bearerFormat: "DBI agent token" },
+        cookieAuth: { type: "apiKey", in: "cookie", name: sessionCookie },
+      },
+      schemas: {
+        TaskingTaskStatus: { type: "string", enum: TASKING_TASK_STATUSES },
+        TaskingTaskCreate: {
+          type: "object",
+          required: ["id", "title", "description", "status", "acceptance", "anchorId"],
+          properties: {
+            id: { type: "string", maxLength: 160 }, title: { type: "string", maxLength: 160 }, description: { type: "string", maxLength: 1200 },
+            status: { $ref: "#/components/schemas/TaskingTaskStatus" },
+            owner: { type: "string", maxLength: 100, description: "May be blank only while status is draft." },
+            acceptance: { type: "string", maxLength: 500 }, anchorId: { type: "string", maxLength: 160 },
+            evidenceCount: { type: "integer", minimum: 0 }, dependencyCount: { type: "integer", minimum: 0 },
+          },
+        },
+        TaskingTaskPatch: {
+          type: "object",
+          properties: {
+            title: { type: "string", maxLength: 160 }, description: { type: "string", maxLength: 1200 },
+            status: { $ref: "#/components/schemas/TaskingTaskStatus" },
+            owner: { type: "string", maxLength: 100, description: "May be blank only while status is draft." },
+            acceptance: { type: "string", maxLength: 500 }, anchorId: { type: "string", maxLength: 160 },
+            evidenceCount: { type: "integer", minimum: 0 }, dependencyCount: { type: "integer", minimum: 0 },
+          },
+        },
+      },
+    },
   };
 }

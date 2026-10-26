@@ -8,12 +8,18 @@ import ControlSelect from "./ControlSelect.jsx";
 import SemanticStatusBadge from "./SemanticStatusBadge.jsx";
 import ControlWorkbenchHeader from "./WorkbenchHeader.jsx";
 import { flattenTaskingFolders } from "./tasking-foundation-data.js";
-import { TASKING_TASK_STATUSES } from "./tasking-model.js";
+import { TASKING_TASK_STATUSES, taskingTaskOwnerRequired } from "./tasking-model.js";
 import { useTaskingTasks } from "./use-tasking-tasks.js";
 import "./TaskingWorkspace.css";
 
 const VIEW_IDS = new Set(["portfolio", "files", "connections"]);
-const OPEN_STATUSES = new Set(["ready", "in-progress", "waiting", "review"]);
+const OPEN_STATUSES = new Set(["draft", "ready", "in-progress", "waiting", "review"]);
+
+function taskStatusLabel(status) {
+  if (status === "review") return "In review";
+  if (status === "completed") return "Complete";
+  return status.replaceAll("-", " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
 
 function routeState(routeHash = "") {
   const params = new URLSearchParams(String(routeHash).split("?")[1] || "");
@@ -95,7 +101,7 @@ function oneDriveTree(sourceItems = []) {
 function TaskRow({ task, selected, onSelect }) {
   return <button type="button" className={`tasking-task-row${selected ? " is-selected" : ""}`} onClick={() => onSelect(task.id)}>
     <span className="tasking-task-row__status" data-status={task.status} aria-hidden="true" />
-    <span><strong>{task.title}</strong><small>{task.owner} · {task.evidenceCount} evidence{task.dependencyCount ? ` · ${task.dependencyCount} wait` : ""}</small></span>
+    <span><strong>{task.title}</strong><small>{task.owner || "No owner"} · {task.evidenceCount} evidence{task.dependencyCount ? ` · ${task.dependencyCount} wait` : ""}</small></span>
     <SemanticStatusBadge category="workflow" value={task.status} />
   </button>;
 }
@@ -174,12 +180,13 @@ function ConnectionsView({ records, relationships, selectedId, onSelect }) {
 
 function TaskEditor({ task, canWrite, saving, notice, onSave, onReset }) {
   const [draft, setDraft] = useState(() => ({ status: task.status, owner: task.owner, acceptance: task.acceptance }));
+  const ownerRequired = taskingTaskOwnerRequired(draft.status);
   return <form className="tasking-task-editor" data-tasking-task-editor onSubmit={(event) => { event.preventDefault(); void onSave(task.id, draft).catch(() => {}); }}>
     <header><h4>Task state <span>{task.persisted ? `Version ${task.version}` : "Foundation value"}</span></h4>{task.persisted ? <ControlStatusBadge status="verified" label="Persisted" /> : null}</header>
-    <label><span>Status</span><span data-tasking-status-control><ControlSelect compact ariaLabel="Task status" value={draft.status} options={TASKING_TASK_STATUSES.map((value) => [value, value.replaceAll("-", " ").replace(/\b\w/g, (letter) => letter.toUpperCase())])} onChange={(value) => setDraft((current) => ({ ...current, status: value }))} disabled={!canWrite || saving} /></span></label>
-    <label><span>Owner</span><input className="if-input" data-tasking-owner-input value={draft.owner} maxLength={100} disabled={!canWrite || saving} onChange={(event) => setDraft((current) => ({ ...current, owner: event.target.value }))} /></label>
+    <label><span>Status</span><span data-tasking-status-control><ControlSelect compact ariaLabel="Task status" value={draft.status} options={TASKING_TASK_STATUSES.map((value) => [value, taskStatusLabel(value)])} onChange={(value) => setDraft((current) => ({ ...current, status: value }))} disabled={!canWrite || saving} /></span></label>
+    <label><span>Owner{ownerRequired ? "" : " (optional for draft)"}</span><input className="if-input" data-tasking-owner-input value={draft.owner} maxLength={100} placeholder={ownerRequired ? "Name the accountable owner" : "Leave blank until confirmed"} disabled={!canWrite || saving} onChange={(event) => setDraft((current) => ({ ...current, owner: event.target.value }))} /></label>
     <label><span>Acceptance</span><textarea className="if-input" value={draft.acceptance} maxLength={500} rows={3} disabled={!canWrite || saving} onChange={(event) => setDraft((current) => ({ ...current, acceptance: event.target.value }))} /></label>
-    <div className="tasking-task-editor__actions"><button className="if-btn if-btn--primary if-btn--sm" type="submit" disabled={!canWrite || saving || !draft.owner.trim() || !draft.acceptance.trim()}><Save size={14} />{saving ? "Saving…" : "Save task"}</button>{task.persisted ? <button className="if-btn if-btn--ghost if-btn--sm" type="button" disabled={!canWrite || saving} onClick={() => void onReset(task.id).catch(() => {})}><RotateCcw size={14} />{task.foundation === false ? "Remove" : "Reset"}</button> : null}</div>
+    <div className="tasking-task-editor__actions"><button className="if-btn if-btn--primary if-btn--sm" type="submit" disabled={!canWrite || saving || (ownerRequired && !draft.owner.trim()) || !draft.acceptance.trim()}><Save size={14} />{saving ? "Saving…" : "Save task"}</button>{task.persisted ? <button className="if-btn if-btn--ghost if-btn--sm" type="button" disabled={!canWrite || saving} onClick={() => void onReset(task.id).catch(() => {})}><RotateCcw size={14} />{task.foundation === false ? "Remove" : "Reset"}</button> : null}</div>
     {notice ? <p className="if-field__hint" role="status">{notice}</p> : null}
     {!canWrite ? <p className="if-field__hint">Workspace write access is required to change task state.</p> : null}
   </form>;
@@ -239,7 +246,7 @@ export default function TaskingWorkspace({ routeHash = "" }) {
   });
   const visibleAnchorIds = new Set(filteredAnchors.map((anchor) => anchor.id));
   const filteredWorkstreams = workspace.workstreams.filter((workstream) => (workstream.anchors || []).some((anchorId) => visibleAnchorIds.has(anchorId)));
-  const filteredTasks = tasks.filter((task) => visibleAnchorIds.has(task.anchorId));
+  const filteredTasks = tasks.filter((task) => visibleAnchorIds.has(task.anchorId) && (status === "all" || task.status === status));
   const waiting = tasks.filter((task) => task.status === "waiting").length;
   const review = tasks.filter((task) => task.status === "review").length;
 
@@ -267,7 +274,7 @@ export default function TaskingWorkspace({ routeHash = "" }) {
       <section className="tasking-scope" aria-label="Tasking scope controls">
         <label className="tasking-search"><Search size={15} aria-hidden="true" /><span className="sr-only">Search Tasking</span><input value={query} onChange={(event) => setQuery(event.target.value)} onBlur={() => updateTaskingRoute({ taskingQuery: query })} onKeyDown={(event) => { if (event.key === "Enter") updateTaskingRoute({ taskingQuery: query }); }} placeholder="Search anchors, tasks, outcomes, and context…" /></label>
         <ControlSelect compact ariaLabel="Workstream" value={workstreamId} options={[["all", "All workstreams"], ...workspace.workstreams.map((item) => [item.id, item.name])]} onChange={(value) => commitFilter("taskingWorkstream", value, setWorkstreamId)} />
-        <ControlSelect compact ariaLabel="Status" value={status} options={[["all", "All states"], ["ready", "Ready"], ["in-progress", "In progress"], ["waiting", "Waiting"], ["review", "In review"], ["blocked", "Blocked"], ["completed", "Complete"]]} onChange={(value) => commitFilter("taskingStatus", value, setStatus)} />
+        <ControlSelect compact ariaLabel="Status" value={status} options={[["all", "All states"], ...TASKING_TASK_STATUSES.map((value) => [value, taskStatusLabel(value)])]} onChange={(value) => commitFilter("taskingStatus", value, setStatus)} />
         <span className="tasking-scope__result"><ListFilter size={14} />{filteredAnchors.length} anchors · {filteredTasks.length} tasks</span>
       </section>
       <div className="tasking-schema-rule"><strong>Projection:</strong><span>Workstream</span><ChevronRight size={12} /><span>Pursuit, Account, File, or Goal anchor</span><ChevronRight size={12} /><span>Task</span><small>Connections add context without duplicating work.</small></div>

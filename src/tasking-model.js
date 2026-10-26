@@ -1,8 +1,12 @@
 import { cleanText } from "./security-policy.js";
 import { TASKING_FOUNDATION } from "./tasking-foundation-data.js";
 
-export const TASKING_TASK_STATUSES = Object.freeze(["ready", "in-progress", "waiting", "review", "blocked", "completed"]);
+export const TASKING_TASK_STATUSES = Object.freeze(["draft", "ready", "in-progress", "waiting", "review", "blocked", "completed"]);
 const STATUS_SET = new Set(TASKING_TASK_STATUSES);
+
+export function taskingTaskOwnerRequired(status) {
+  return status !== "draft";
+}
 
 export function taskingFoundationTask(taskId) {
   return TASKING_FOUNDATION.tasks.find((task) => task.id === cleanText(taskId, 120)) || null;
@@ -13,13 +17,15 @@ export function taskingTaskFromRow(row) {
   const taskId = cleanText(row.taskId ?? row.task_id, 120);
   const foundation = taskingFoundationTask(taskId);
   if (!foundation) return null;
-  const status = cleanText(row.status, 40);
+  const persistedStatus = cleanText(row.status, 40);
+  const status = STATUS_SET.has(persistedStatus) ? persistedStatus : foundation.status;
+  const owner = cleanText(row.owner ?? foundation.owner, 100);
   return {
     taskId,
     title: cleanText(row.title ?? foundation.title, 160) || foundation.title,
     description: cleanText(row.description ?? foundation.description, 1_200) || foundation.description,
-    status: STATUS_SET.has(status) ? status : foundation.status,
-    owner: cleanText(row.owner ?? foundation.owner, 100) || foundation.owner,
+    status,
+    owner: taskingTaskOwnerRequired(status) ? owner || foundation.owner : owner,
     acceptance: cleanText(row.acceptance ?? foundation.acceptance, 500) || foundation.acceptance,
     version: Math.max(1, Number(row.version) || 1),
     updatedAt: row.updatedAt ?? row.updated_at ?? null,
@@ -43,7 +49,8 @@ export function taskingTaskMutation(taskId, body = {}, current = null) {
     acceptance: cleanText(body?.acceptance ?? current?.acceptance ?? foundation.acceptance, 500),
     version: expectedVersion,
   };
-  if (!task.title || !task.description || !task.owner || !task.acceptance) return { error: "Task title, description, owner, and acceptance are required" };
+  if (!task.title || !task.description || !task.acceptance) return { error: "Task title, description, and acceptance are required" };
+  if (taskingTaskOwnerRequired(task.status) && !task.owner) return { error: "Task owner is required unless status is draft" };
   return { task };
 }
 
