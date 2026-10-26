@@ -680,105 +680,14 @@
   color: var(--if-fg);
 }
 
-.tasking-file-intelligence,
 .tasking-connections {
   min-width: 0;
 }
 
-.tasking-file-intelligence > header p,
 .tasking-connections > header p {
   margin: 3px 0 0;
   color: var(--if-fg-muted);
   font-size: var(--if-font-size-xs);
-}
-
-.tasking-file-intelligence > header > strong {
-  color: var(--if-fg);
-  font-size: var(--if-font-size-xs);
-}
-
-.tasking-file-table {
-  min-width: 600px;
-}
-
-.tasking-file-table__head,
-.tasking-file-table > button {
-  display: grid;
-  grid-template-columns: minmax(240px, 1.5fr) minmax(110px, .7fr) minmax(100px, .55fr) minmax(110px, .65fr);
-  align-items: center;
-}
-
-.tasking-file-table__head {
-  min-height: 34px;
-  border-bottom: 1px solid var(--if-border);
-  background: var(--if-surface-subtle);
-  color: var(--if-fg-muted);
-  font-size: 10px;
-  font-weight: 800;
-  letter-spacing: .05em;
-  text-transform: uppercase;
-}
-
-.tasking-file-table__head > span,
-.tasking-file-table > button > span {
-  min-width: 0;
-  padding: 7px 9px;
-  border-right: 1px solid var(--if-border);
-}
-
-.tasking-file-table__head > span:last-child,
-.tasking-file-table > button > span:last-child {
-  border-right: 0;
-}
-
-.tasking-file-table > button {
-  width: 100%;
-  min-height: 48px;
-  padding: 0;
-  border: 0;
-  border-bottom: 1px solid var(--if-border);
-  background: var(--if-surface);
-  color: var(--if-fg);
-  text-align: left;
-  cursor: pointer;
-}
-
-.tasking-file-table > button:hover,
-.tasking-file-table > button.is-selected {
-  background: var(--if-surface-selected, var(--if-surface-raised));
-}
-
-.tasking-file-table > button > span:first-child {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  padding-left: calc(var(--tasking-file-depth) * 15px + 9px);
-}
-
-.tasking-file-table > button > span:not(:first-child) {
-  color: var(--if-fg-muted);
-  font-size: var(--if-font-size-xs);
-}
-
-.tasking-file-table > button > span:first-child > span {
-  display: grid;
-  min-width: 0;
-}
-
-.tasking-file-table strong,
-.tasking-file-table small {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.tasking-file-table strong {
-  font-size: var(--if-font-size-xs);
-}
-
-.tasking-file-table small {
-  color: var(--if-fg-muted);
-  font-size: 10px;
 }
 
 .tasking-connections__legend {
@@ -1007,10 +916,6 @@
   .tasking-context {
     display: block;
     border-top: 1px solid var(--if-border);
-  }
-
-  .tasking-file-table {
-    min-width: 680px;
   }
 
   .tasking-boundary {

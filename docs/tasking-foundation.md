@@ -19,6 +19,12 @@ Task writes use optimistic versions, RBAC, idempotency, and append-only audit ac
 
 Source access stays with the calling agent. The API accepts normalized metadata from `localfs` or `onedrive`, stores no Microsoft credentials, never moves or renames source files, and keeps human task fields separate from source observations. Deleted source items are represented as versioned tombstones for reconciliation.
 
+## File intelligence
+
+The Files view derives analytics from active normalized source metadata without opening or mutating source files. It reports observed file types, reported sizes, last-modified freshness bands, review coverage, workspace placement, and actual task relationships as separate measures. A file is task-related only when its reviewed workspace anchor owns a task or an explicit relationship connects the source to a task; a workspace link alone is labeled separately.
+
+File type, task relation, search, and sort controls are URL-backed. The folder tree remains the source hierarchy, while the inventory focuses on files and exposes the selected file's type, size, last-modified date, and task-relation count in the context panel. Unknown dates remain unavailable, and zero or absent source sizes are never inferred from file type.
+
 ## Verification
 
 Run against a served production build:
