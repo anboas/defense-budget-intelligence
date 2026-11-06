@@ -1,10 +1,10 @@
 {
   "metadata": {
     "schemaVersion": "1.0.0",
-    "generatedAt": "2026-10-15T19:40:23.325Z",
+    "generatedAt": "2026-11-06T16:54:10.789Z",
     "status": "compared",
     "discoveryCount": 888,
-    "historyDays": 2,
+    "historyDays": 3,
     "coverage": {
       "scope": "Technology-focused acquisition records assembled from disclosed public-source queries; not exhaustive DoW award coverage.",
       "knownRecords": 888,
@@ -16,19 +16,19 @@
       "unclassifiedTechnology": 76,
       "missingExactIdentifier": 0,
       "contractMonitor": {
-        "targetCount": 485,
-        "eligibleTargetCount": 485,
+        "targetCount": 476,
+        "eligibleTargetCount": 476,
         "excludedTargetCount": 0,
-        "exactCount": 428,
+        "exactCount": 419,
         "gapCount": 57,
-        "coveragePct": 88.2,
-        "corpusCoveragePct": 88.2
+        "coveragePct": 88,
+        "corpusCoveragePct": 88
       },
       "sources": {
         "sam": {
           "status": "unavailable",
           "generatedAt": null,
-          "lastAttemptAt": "2026-10-15T19:40:21.851Z"
+          "lastAttemptAt": "2026-11-06T16:54:02.422Z"
         },
         "usaspending": {
           "status": "current",
@@ -37,12 +37,1429 @@
         },
         "contractMonitor": {
           "status": "gaps-disclosed",
-          "generatedAt": "2026-10-15T15:40:06.058Z"
+          "generatedAt": "2026-11-06T16:54:10.629Z"
         }
       }
     }
   },
   "history": [
+    {
+      "date": "2026-11-06",
+      "generatedAt": "2026-11-06T16:54:10.789Z",
+      "summary": {
+        "added": 0,
+        "updated": 200,
+        "removed": 9
+      },
+      "sources": {
+        "sam": "unavailable",
+        "usaspending": "current",
+        "contractMonitor": "gaps-disclosed"
+      },
+      "changes": [
+        {
+          "sourceSystem": "Contract monitor",
+          "sourceRecordId": "CONT_AWD_47QFRA24F0005_4732_47QTCK18D0009_4732",
+          "opportunityId": null,
+          "change": "updated",
+          "title": null,
+          "fields": [
+            {
+              "field": "observation",
+              "label": "Source observation"
+            }
+          ],
+          "fieldCount": 1
+        },
+        {
+          "sourceSystem": "Contract monitor",
+          "sourceRecordId": "CONT_AWD_FA807522F0030_9700_FA807518D0006_9700",
+          "opportunityId": null,
+          "change": "updated",
+          "title": null,
+          "fields": [
+            {
+              "field": "observation",
+              "label": "Source observation"
+            }
+          ],
+          "fieldCount": 1
+        },
+        {
+          "sourceSystem": "Contract monitor",
+          "sourceRecordId": "CONT_AWD_FA872124F0001_9700_GS00Q14OADS742_4732",
+          "opportunityId": null,
+          "change": "updated",
+          "title": null,
+          "fields": [
+            {
+              "field": "observation",
+              "label": "Source observation"
+            }
+          ],
+          "fieldCount": 1
+        },
+        {
+          "sourceSystem": "Contract monitor",
+          "sourceRecordId": "CONT_AWD_FA873022F0071_9700_47QTCK18D0001_4732",
+          "opportunityId": null,
+          "change": "updated",
+          "title": null,
+          "fields": [
+            {
+              "field": "observation",
+              "label": "Source observation"
+            }
+          ],
+          "fieldCount": 1
+        },
+        {
+          "sourceSystem": "Contract monitor",
+          "sourceRecordId": "CONT_AWD_HQ085224F0005_9700_HQ085224D0003_9700",
+          "opportunityId": null,
+          "change": "updated",
+          "title": null,
+          "fields": [
+            {
+              "field": "observation",
+              "label": "Source observation"
+            }
+          ],
+          "fieldCount": 1
+        },
+        {
+          "sourceSystem": "Contract monitor",
+          "sourceRecordId": "CONT_AWD_HQ085224F0007_9700_HQ085224D0003_9700",
+          "opportunityId": null,
+          "change": "updated",
+          "title": null,
+          "fields": [
+            {
+              "field": "observation",
+              "label": "Source observation"
+            }
+          ],
+          "fieldCount": 1
+        },
+        {
+          "sourceSystem": "Contract monitor",
+          "sourceRecordId": "CONT_AWD_HQ085823C0001_9700_-NONE-_-NONE-",
+          "opportunityId": null,
+          "change": "updated",
+          "title": null,
+          "fields": [
+            {
+              "field": "observation",
+              "label": "Source observation"
+            }
+          ],
+          "fieldCount": 1
+        },
+        {
+          "sourceSystem": "Contract monitor",
+          "sourceRecordId": "CONT_AWD_FA807524F0050_9700_FA807518D0015_9700",
+          "opportunityId": null,
+          "change": "updated",
+          "title": null,
+          "fields": [
+            {
+              "field": "observation",
+              "label": "Source observation"
+            }
+          ],
+          "fieldCount": 1
+        },
+        {
+          "sourceSystem": "Contract monitor",
+          "sourceRecordId": "CONT_IDV_N6600125D0029_9700",
+          "opportunityId": null,
+          "change": "updated",
+          "title": null,
+          "fields": [
+            {
+              "field": "observation",
+              "label": "Source observation"
+            }
+          ],
+          "fieldCount": 1
+        },
+        {
+          "sourceSystem": "Contract monitor",
+          "sourceRecordId": "CONT_AWD_W15P7T21F0110_9700_W15P7T17D0155_9700",
+          "opportunityId": null,
+          "change": "updated",
+          "title": null,
+          "fields": [
+            {
+              "field": "observation",
+              "label": "Source observation"
+            }
+          ],
+          "fieldCount": 1
+        },
+        {
+          "sourceSystem": "Contract monitor",
+          "sourceRecordId": "CONT_AWD_47QFLA22F0176_4732_47QFLA21D0008_4732",
+          "opportunityId": null,
+          "change": "updated",
+          "title": null,
+          "fields": [
+            {
+              "field": "observation",
+              "label": "Source observation"
+            }
+          ],
+          "fieldCount": 1
+        },
+        {
+          "sourceSystem": "Contract monitor",
+          "sourceRecordId": "CONT_AWD_N6523625F3024_9700_N0017819D7193_9700",
+          "opportunityId": null,
+          "change": "updated",
+          "title": null,
+          "fields": [
+            {
+              "field": "observation",
+              "label": "Source observation"
+            }
+          ],
+          "fieldCount": 1
+        },
+        {
+          "sourceSystem": "Contract monitor",
+          "sourceRecordId": "CONT_AWD_FA861222FB006_9700_FA861220D0018_9700",
+          "opportunityId": null,
+          "change": "updated",
+          "title": null,
+          "fields": [
+            {
+              "field": "observation",
+              "label": "Source observation"
+            }
+          ],
+          "fieldCount": 1
+        },
+        {
+          "sourceSystem": "Contract monitor",
+          "sourceRecordId": "CONT_AWD_N6426724F3000_9700_N0017819D7504_9700",
+          "opportunityId": null,
+          "change": "updated",
+          "title": null,
+          "fields": [
+            {
+              "field": "observation",
+              "label": "Source observation"
+            }
+          ],
+          "fieldCount": 1
+        },
+        {
+          "sourceSystem": "Contract monitor",
+          "sourceRecordId": "CONT_AWD_W519TC25F0241_9700_W52P1J22G0174_9700",
+          "opportunityId": null,
+          "change": "updated",
+          "title": null,
+          "fields": [
+            {
+              "field": "observation",
+              "label": "Source observation"
+            }
+          ],
+          "fieldCount": 1
+        },
+        {
+          "sourceSystem": "Contract monitor",
+          "sourceRecordId": "CONT_AWD_FA237724CB014_9700_-NONE-_-NONE-",
+          "opportunityId": null,
+          "change": "updated",
+          "title": null,
+          "fields": [
+            {
+              "field": "observation",
+              "label": "Source observation"
+            }
+          ],
+          "fieldCount": 1
+        },
+        {
+          "sourceSystem": "Contract monitor",
+          "sourceRecordId": "CONT_AWD_FA861223CB002_9700_-NONE-_-NONE-",
+          "opportunityId": null,
+          "change": "updated",
+          "title": null,
+          "fields": [
+            {
+              "field": "observation",
+              "label": "Source observation"
+            }
+          ],
+          "fieldCount": 1
+        },
+        {
+          "sourceSystem": "Contract monitor",
+          "sourceRecordId": "CONT_AWD_FA872625FB041_9700_47QREA21D0001_4732",
+          "opportunityId": null,
+          "change": "updated",
+          "title": null,
+          "fields": [
+            {
+              "field": "observation",
+              "label": "Source observation"
+            }
+          ],
+          "fieldCount": 1
+        },
+        {
+          "sourceSystem": "Contract monitor",
+          "sourceRecordId": "CONT_AWD_47QFSA24F0091_4732_47QTCA21A0001_4732",
+          "opportunityId": null,
+          "change": "updated",
+          "title": null,
+          "fields": [
+            {
+              "field": "observation",
+              "label": "Source observation"
+            }
+          ],
+          "fieldCount": 1
+        },
+        {
+          "sourceSystem": "Contract monitor",
+          "sourceRecordId": "CONT_AWD_W91CRB26FA041_9700_W91CRB22D0002_9700",
+          "opportunityId": null,
+          "change": "updated",
+          "title": null,
+          "fields": [
+            {
+              "field": "observation",
+              "label": "Source observation"
+            }
+          ],
+          "fieldCount": 1
+        },
+        {
+          "sourceSystem": "Contract monitor",
+          "sourceRecordId": "CONT_AWD_N0042124F3012_9700_N0017819D7266_9700",
+          "opportunityId": null,
+          "change": "updated",
+          "title": null,
+          "fields": [
+            {
+              "field": "observation",
+              "label": "Source observation"
+            }
+          ],
+          "fieldCount": 1
+        },
+        {
+          "sourceSystem": "Contract monitor",
+          "sourceRecordId": "CONT_AWD_FA830725FB089_9700_GS35F685GA_4732",
+          "opportunityId": null,
+          "change": "updated",
+          "title": null,
+          "fields": [
+            {
+              "field": "observation",
+              "label": "Source observation"
+            }
+          ],
+          "fieldCount": 1
+        },
+        {
+          "sourceSystem": "Contract monitor",
+          "sourceRecordId": "CONT_AWD_FA489025F0073_9700_47QTCA23D005G_4732",
+          "opportunityId": null,
+          "change": "updated",
+          "title": null,
+          "fields": [
+            {
+              "field": "observation",
+              "label": "Source observation"
+            }
+          ],
+          "fieldCount": 1
+        },
+        {
+          "sourceSystem": "Contract monitor",
+          "sourceRecordId": "CONT_AWD_FA830724FB068_9700_GS35F425BA_4732",
+          "opportunityId": null,
+          "change": "updated",
+          "title": null,
+          "fields": [
+            {
+              "field": "observation",
+              "label": "Source observation"
+            }
+          ],
+          "fieldCount": 1
+        },
+        {
+          "sourceSystem": "Contract monitor",
+          "sourceRecordId": "CONT_AWD_N0002424C5113_9700_-NONE-_-NONE-",
+          "opportunityId": null,
+          "change": "updated",
+          "title": null,
+          "fields": [
+            {
+              "field": "observation",
+              "label": "Source observation"
+            }
+          ],
+          "fieldCount": 1
+        },
+        {
+          "sourceSystem": "Contract monitor",
+          "sourceRecordId": "CONT_AWD_N0042125F0827_9700_N0042125D0004_9700",
+          "opportunityId": null,
+          "change": "updated",
+          "title": null,
+          "fields": [
+            {
+              "field": "observation",
+              "label": "Source observation"
+            }
+          ],
+          "fieldCount": 1
+        },
+        {
+          "sourceSystem": "Contract monitor",
+          "sourceRecordId": "opp_408196edfc301aa20b6d",
+          "opportunityId": "opp_408196edfc301aa20b6d",
+          "change": "updated",
+          "title": "MH-60 SCAI cyber/config options",
+          "fields": [
+            {
+              "field": "lifecycle",
+              "label": "Lifecycle"
+            }
+          ],
+          "fieldCount": 1
+        },
+        {
+          "sourceSystem": "Contract monitor",
+          "sourceRecordId": "CONT_IDV_N0042123D0005_9700",
+          "opportunityId": null,
+          "change": "updated",
+          "title": null,
+          "fields": [
+            {
+              "field": "observation",
+              "label": "Source observation"
+            }
+          ],
+          "fieldCount": 1
+        },
+        {
+          "sourceSystem": "Contract monitor",
+          "sourceRecordId": "CONT_AWD_N0042120C0003_9700_-NONE-_-NONE-",
+          "opportunityId": null,
+          "change": "updated",
+          "title": null,
+          "fields": [
+            {
+              "field": "observation",
+              "label": "Source observation"
+            }
+          ],
+          "fieldCount": 1
+        },
+        {
+          "sourceSystem": "Contract monitor",
+          "sourceRecordId": "CONT_AWD_N0002417C2100_9700_-NONE-_-NONE-",
+          "opportunityId": "auto_usaspending_CONT_AWD_N0002417C2100_9700__NONE___NONE_",
+          "change": "updated",
+          "title": "SSN 802 AND 803 LONG LEAD TIME MATERIAL",
+          "fields": [
+            {
+              "field": "observation",
+              "label": "Source observation"
+            }
+          ],
+          "fieldCount": 1
+        },
+        {
+          "sourceSystem": "Contract monitor",
+          "sourceRecordId": "CONT_AWD_N0002417C2117_9700_-NONE-_-NONE-",
+          "opportunityId": "auto_usaspending_CONT_AWD_N0002417C2117_9700__NONE___NONE_",
+          "change": "updated",
+          "title": "COLUMBIA CLASS DESIGN COMPLETION",
+          "fields": [
+            {
+              "field": "observation",
+              "label": "Source observation"
+            }
+          ],
+          "fieldCount": 1
+        },
+        {
+          "sourceSystem": "Contract monitor",
+          "sourceRecordId": "CONT_AWD_N0001914C0067_9700_-NONE-_-NONE-",
+          "opportunityId": "auto_usaspending_CONT_AWD_N0001914C0067_9700__NONE___NONE_",
+          "change": "updated",
+          "title": "USN P-8A FRP II LONG LEAD MATERIAL",
+          "fields": [
+            {
+              "field": "observation",
+              "label": "Source observation"
+            }
+          ],
+          "fieldCount": 1
+        },
+        {
+          "sourceSystem": "Contract monitor",
+          "sourceRecordId": "CONT_AWD_FA821920C0006_9700_-NONE-_-NONE-",
+          "opportunityId": "auto_usaspending_CONT_AWD_FA821920C0006_9700__NONE___NONE_",
+          "change": "updated",
+          "title": "GROUND-BASED STRATEGIC DETERRENT (GBSD) ENGINEERING AND MANUFACTURING DEVELOPMENT (EMD) AND EARLY PRODUCTION AND DEPLOYMENT (P&D)",
+          "fields": [
+            {
+              "field": "observation",
+              "label": "Source observation"
+            }
+          ],
+          "fieldCount": 1
+        },
+        {
+          "sourceSystem": "Contract monitor",
+          "sourceRecordId": "CONT_AWD_W31P4Q20C0023_9700_-NONE-_-NONE-",
+          "opportunityId": "auto_usaspending_CONT_AWD_W31P4Q20C0023_9700__NONE___NONE_",
+          "change": "updated",
+          "title": "THE CONTRACT AWARD IS FOR THE FY21/FY22/FY23 BASE AND OPTION PRICING FOR PHASE ARRAY TRACKING RADAR TO INTERCEPT ON TARGET (PATRIOT) ADVANCED CAPABILITY-3 (PAC-3) PRODUCTION REQUIREMENTS FOR THE UNITED STATES (US) AND FOREIGN MILITARY SA...",
+          "fields": [
+            {
+              "field": "observation",
+              "label": "Source observation"
+            }
+          ],
+          "fieldCount": 1
+        },
+        {
+          "sourceSystem": "Contract monitor",
+          "sourceRecordId": "CONT_AWD_W31P4Q24C0022_9700_-NONE-_-NONE-",
+          "opportunityId": "auto_usaspending_CONT_AWD_W31P4Q24C0022_9700__NONE___NONE_",
+          "change": "updated",
+          "title": "EXECUTE PHASED ARRAY TRACKING RADAR TO INTERCEPT ON TARGET (PATRIOT) ADVANCED CAPABILITY-3 (PAC-3) MISSILE PRODUCTION BY PROVIDING INCIDENTAL SERVICES, HARDWARE, FACILITIES, EQUIPMENT, AND TECHNICAL, PLANNING, MANAGEMENT, AND MANUFACTURI...",
+          "fields": [
+            {
+              "field": "observation",
+              "label": "Source observation"
+            }
+          ],
+          "fieldCount": 1
+        },
+        {
+          "sourceSystem": "Contract monitor",
+          "sourceRecordId": "CONT_AWD_HQ014717C0032_9700_-NONE-_-NONE-",
+          "opportunityId": "auto_usaspending_CONT_AWD_HQ014717C0032_9700__NONE___NONE_",
+          "change": "updated",
+          "title": "HQ0147-17-C-0032 UNDEFINITIZED CONTRACT ACTION (UCA) FOR THAAD INTERCEPTOR LOT 9 PRODUCTION - QTY OF 23",
+          "fields": [
+            {
+              "field": "observation",
+              "label": "Source observation"
+            }
+          ],
+          "fieldCount": 1
+        },
+        {
+          "sourceSystem": "Contract monitor",
+          "sourceRecordId": "CONT_AWD_N0002423C2307_9700_-NONE-_-NONE-",
+          "opportunityId": "auto_usaspending_CONT_AWD_N0002423C2307_9700__NONE___NONE_",
+          "change": "updated",
+          "title": "CONSTRUCTION OF DDG 51 SHIPS FY23-27",
+          "fields": [
+            {
+              "field": "observation",
+              "label": "Source observation"
+            }
+          ],
+          "fieldCount": 1
+        },
+        {
+          "sourceSystem": "Contract monitor",
+          "sourceRecordId": "CONT_AWD_N0001924C0039_9700_-NONE-_-NONE-",
+          "opportunityId": "auto_usaspending_CONT_AWD_N0001924C0039_9700__NONE___NONE_",
+          "change": "updated",
+          "title": "CY24 AVSC SUPPLY SUPPORT",
+          "fields": [
+            {
+              "field": "observation",
+              "label": "Source observation"
+            }
+          ],
+          "fieldCount": 1
+        },
+        {
+          "sourceSystem": "Contract monitor",
+          "sourceRecordId": "CONT_AWD_FA881018C0005_9700_-NONE-_-NONE-",
+          "opportunityId": "auto_usaspending_CONT_AWD_FA881018C0005_9700__NONE___NONE_",
+          "change": "updated",
+          "title": "NEXT GENERATION OVERHEAD PERSISTENT INFRARED GEOSYNCHRONOUS EARTH ORBIT SPACE VEHICLE 1-3 PHASE 1",
+          "fields": [
+            {
+              "field": "observation",
+              "label": "Source observation"
+            }
+          ],
+          "fieldCount": 1
+        },
+        {
+          "sourceSystem": "Contract monitor",
+          "sourceRecordId": "CONT_AWD_W58RGZ16C0023_9700_-NONE-_-NONE-",
+          "opportunityId": "auto_usaspending_CONT_AWD_W58RGZ16C0023_9700__NONE___NONE_",
+          "change": "updated",
+          "title": "W58RGZ-16-C-0023 IS FOR THE AWARD OF ADVANCE PROCUREMENT IN THE AMOUNT OF $184,930,000.00 TO SUPPORT LOT 7 FULL RATE PRODUCTION LONG LEAD ITEMS.",
+          "fields": [
+            {
+              "field": "observation",
+              "label": "Source observation"
+            }
+          ],
+          "fieldCount": 1
+        },
+        {
+          "sourceSystem": "Contract monitor",
+          "sourceRecordId": "CONT_AWD_N0002424C2110_9700_-NONE-_-NONE-",
+          "opportunityId": "auto_usaspending_CONT_AWD_N0002424C2110_9700__NONE___NONE_",
+          "change": "updated",
+          "title": "SSN 814 & SSN 815 LONG LEAD TIME MATERIAL",
+          "fields": [
+            {
+              "field": "observation",
+              "label": "Source observation"
+            }
+          ],
+          "fieldCount": 1
+        },
+        {
+          "sourceSystem": "Contract monitor",
+          "sourceRecordId": "CONT_AWD_FA863418C2701_9700_-NONE-_-NONE-",
+          "opportunityId": "auto_usaspending_CONT_AWD_FA863418C2701_9700__NONE___NONE_",
+          "change": "updated",
+          "title": "F-15, FMS, F-15QA AIR VEHICLE DEVELOPMENT",
+          "fields": [
+            {
+              "field": "observation",
+              "label": "Source observation"
+            }
+          ],
+          "fieldCount": 1
+        },
+        {
+          "sourceSystem": "Contract monitor",
+          "sourceRecordId": "CONT_AWD_N0002418C2307_9700_-NONE-_-NONE-",
+          "opportunityId": "auto_usaspending_CONT_AWD_N0002418C2307_9700__NONE___NONE_",
+          "change": "updated",
+          "title": "FY18-FY22 DDG 51 CLASS SHIP CONSTRUCTION",
+          "fields": [
+            {
+              "field": "observation",
+              "label": "Source observation"
+            }
+          ],
+          "fieldCount": 1
+        },
+        {
+          "sourceSystem": "Contract monitor",
+          "sourceRecordId": "CONT_AWD_N0002423C2305_9700_-NONE-_-NONE-",
+          "opportunityId": "auto_usaspending_CONT_AWD_N0002423C2305_9700__NONE___NONE_",
+          "change": "updated",
+          "title": "CONSTRUCTION OF DDG 51 SHIPS FY23-27",
+          "fields": [
+            {
+              "field": "observation",
+              "label": "Source observation"
+            }
+          ],
+          "fieldCount": 1
+        },
+        {
+          "sourceSystem": "Contract monitor",
+          "sourceRecordId": "CONT_AWD_FA862914C2403_9700_-NONE-_-NONE-",
+          "opportunityId": "auto_usaspending_CONT_AWD_FA862914C2403_9700__NONE___NONE_",
+          "change": "updated",
+          "title": "ACAT 1D - CRH",
+          "fields": [
+            {
+              "field": "observation",
+              "label": "Source observation"
+            }
+          ],
+          "fieldCount": 1
+        },
+        {
+          "sourceSystem": "Contract monitor",
+          "sourceRecordId": "CONT_AWD_N0002418C2305_9700_-NONE-_-NONE-",
+          "opportunityId": "auto_usaspending_CONT_AWD_N0002418C2305_9700__NONE___NONE_",
+          "change": "updated",
+          "title": "FY18-FY22 DDG 51 CLASS SHIP CONSTRUCTION",
+          "fields": [
+            {
+              "field": "observation",
+              "label": "Source observation"
+            }
+          ],
+          "fieldCount": 1
+        },
+        {
+          "sourceSystem": "Contract monitor",
+          "sourceRecordId": "CONT_AWD_N0002420C2120_9700_-NONE-_-NONE-",
+          "opportunityId": "auto_usaspending_CONT_AWD_N0002420C2120_9700__NONE___NONE_",
+          "change": "updated",
+          "title": "LEAD YARD SUPPORT",
+          "fields": [
+            {
+              "field": "observation",
+              "label": "Source observation"
+            }
+          ],
+          "fieldCount": 1
+        },
+        {
+          "sourceSystem": "Contract monitor",
+          "sourceRecordId": "CONT_AWD_N0002413C2305_9700_-NONE-_-NONE-",
+          "opportunityId": "auto_usaspending_CONT_AWD_N0002413C2305_9700__NONE___NONE_",
+          "change": "updated",
+          "title": "FY13-FY17 DDG 51 CLASS SHIP CONSTRUCTION.",
+          "fields": [
+            {
+              "field": "observation",
+              "label": "Source observation"
+            }
+          ],
+          "fieldCount": 1
+        },
+        {
+          "sourceSystem": "Contract monitor",
+          "sourceRecordId": "CONT_AWD_N0002411C2300_9700_-NONE-_-NONE-",
+          "opportunityId": "auto_usaspending_CONT_AWD_N0002411C2300_9700__NONE___NONE_",
+          "change": "updated",
+          "title": "BASIC AWARD",
+          "fields": [
+            {
+              "field": "observation",
+              "label": "Source observation"
+            }
+          ],
+          "fieldCount": 1
+        },
+        {
+          "sourceSystem": "Contract monitor",
+          "sourceRecordId": "CONT_AWD_W31P4Q26C0013_9700_-NONE-_-NONE-",
+          "opportunityId": "auto_usaspending_CONT_AWD_W31P4Q26C0013_9700__NONE___NONE_",
+          "change": "updated",
+          "title": "EXECUTE PHASED ARRAY TRACKING RADAR TO INTERCEPT ON TARGET (PATRIOT) ADVANCED CAPABILITY-3 (PAC-3) MISSILE PRODUCTION BY PROVIDING INCIDENTAL SERVICES, HARDWARE, FACILITIES, EQUIPMENT, AND TECHNICAL, PLANNING, MANAGEMENT, AND MANUFACTURI...",
+          "fields": [
+            {
+              "field": "observation",
+              "label": "Source observation"
+            }
+          ],
+          "fieldCount": 1
+        },
+        {
+          "sourceSystem": "Contract monitor",
+          "sourceRecordId": "CONT_AWD_N0002418C2406_9700_-NONE-_-NONE-",
+          "opportunityId": "auto_usaspending_CONT_AWD_N0002418C2406_9700__NONE___NONE_",
+          "change": "updated",
+          "title": "LPD 30 LLTM",
+          "fields": [
+            {
+              "field": "observation",
+              "label": "Source observation"
+            }
+          ],
+          "fieldCount": 1
+        },
+        {
+          "sourceSystem": "Contract monitor",
+          "sourceRecordId": "CONT_AWD_W31P4Q19C0011_9700_-NONE-_-NONE-",
+          "opportunityId": "auto_usaspending_CONT_AWD_W31P4Q19C0011_9700__NONE___NONE_",
+          "change": "updated",
+          "title": "W31P4Q-19-C-0011 PAC-3 PRODUCTION CONTRACT FOR THE FY19/20 US/FMS REQUIREMENTS, WHICH INCLUDES: MSE&CRI MISSILES, LMKS AND OTHER GROUND SUPPORT FOR PATRIOT/PAC-3 WEAPON.",
+          "fields": [
+            {
+              "field": "observation",
+              "label": "Source observation"
+            }
+          ],
+          "fieldCount": 1
+        },
+        {
+          "sourceSystem": "Contract monitor",
+          "sourceRecordId": "CONT_AWD_W9124G17C0104_9700_-NONE-_-NONE-",
+          "opportunityId": "auto_usaspending_CONT_AWD_W9124G17C0104_9700__NONE___NONE_",
+          "change": "updated",
+          "title": "IGF::OT::IGF",
+          "fields": [
+            {
+              "field": "observation",
+              "label": "Source observation"
+            }
+          ],
+          "fieldCount": 1
+        },
+        {
+          "sourceSystem": "Contract monitor",
+          "sourceRecordId": "CONT_AWD_W58RGZ23C0001_9700_-NONE-_-NONE-",
+          "opportunityId": "auto_usaspending_CONT_AWD_W58RGZ23C0001_9700__NONE___NONE_",
+          "change": "updated",
+          "title": "THE FUTURE VERTICAL LIFT (FVL) FLRAA CAPABILITY SET THREE IS A PRE-MAJOR DEFENSE ACQUISITION PROGRAM (ACAT 1C) COMMISSIONED TO DEVELOP AND FIELD THE NEXT GENERATION OF AFFORDABLE VERTICAL LIFT TACTICAL ASSAULT / UTILITY AIRCRAFT FOR THE...",
+          "fields": [
+            {
+              "field": "observation",
+              "label": "Source observation"
+            }
+          ],
+          "fieldCount": 1
+        },
+        {
+          "sourceSystem": "Contract monitor",
+          "sourceRecordId": "CONT_AWD_FA863423F0048_9700_FA863420D2704_9700",
+          "opportunityId": "auto_usaspending_CONT_AWD_FA863423F0048_9700_FA863420D2704_9700",
+          "change": "updated",
+          "title": "F-15EX LOT 5 ADVANCED PROCUREMENT",
+          "fields": [
+            {
+              "field": "observation",
+              "label": "Source observation"
+            }
+          ],
+          "fieldCount": 1
+        },
+        {
+          "sourceSystem": "Contract monitor",
+          "sourceRecordId": "CONT_AWD_FA881018C0006_9700_-NONE-_-NONE-",
+          "opportunityId": "auto_usaspending_CONT_AWD_FA881018C0006_9700__NONE___NONE_",
+          "change": "updated",
+          "title": "NEXT GENERATION OVERHEAD PERSISTENT INFRARED POLAR SPACE VEHICLES 1 AND 2 STUDY.",
+          "fields": [
+            {
+              "field": "observation",
+              "label": "Source observation"
+            }
+          ],
+          "fieldCount": 1
+        },
+        {
+          "sourceSystem": "Contract monitor",
+          "sourceRecordId": "CONT_AWD_W58RGZ21C0015_9700_-NONE-_-NONE-",
+          "opportunityId": "auto_usaspending_CONT_AWD_W58RGZ21C0015_9700__NONE___NONE_",
+          "change": "updated",
+          "title": "APACHE ADVANCED PROCUREMENT AWARD FOR LOT 12 FULL RATE PRODUCTION.",
+          "fields": [
+            {
+              "field": "observation",
+              "label": "Source observation"
+            }
+          ],
+          "fieldCount": 1
+        },
+        {
+          "sourceSystem": "Contract monitor",
+          "sourceRecordId": "CONT_AWD_N0002416C2427_9700_-NONE-_-NONE-",
+          "opportunityId": "auto_usaspending_CONT_AWD_N0002416C2427_9700__NONE___NONE_",
+          "change": "updated",
+          "title": "DETAIL DESIGN AND CONSTRUCTION (DD&C) FOR LHA 8 (INITIAL EFFORT LIMITED TO PLANNING, ADVANCED ENGINEERING AND PROCUREMENT OF LONG LEAD TIME MATERIAL)",
+          "fields": [
+            {
+              "field": "observation",
+              "label": "Source observation"
+            }
+          ],
+          "fieldCount": 1
+        },
+        {
+          "sourceSystem": "Contract monitor",
+          "sourceRecordId": "CONT_AWD_N0002418C2301_9700_-NONE-_-NONE-",
+          "opportunityId": "auto_usaspending_CONT_AWD_N0002418C2301_9700__NONE___NONE_",
+          "change": "updated",
+          "title": "MMSC DETAILED DESIGN AND CONSTRUCTION",
+          "fields": [
+            {
+              "field": "observation",
+              "label": "Source observation"
+            }
+          ],
+          "fieldCount": 1
+        },
+        {
+          "sourceSystem": "Contract monitor",
+          "sourceRecordId": "CONT_AWD_HQ085124C0001_9700_-NONE-_-NONE-",
+          "opportunityId": "auto_usaspending_CONT_AWD_HQ085124C0001_9700__NONE___NONE_",
+          "change": "updated",
+          "title": "FY 23-25 SM-3 BLOCK IIA AURS",
+          "fields": [
+            {
+              "field": "observation",
+              "label": "Source observation"
+            }
+          ],
+          "fieldCount": 1
+        },
+        {
+          "sourceSystem": "Contract monitor",
+          "sourceRecordId": "CONT_AWD_W31P4Q18C0130_9700_-NONE-_-NONE-",
+          "opportunityId": "auto_usaspending_CONT_AWD_W31P4Q18C0130_9700__NONE___NONE_",
+          "change": "updated",
+          "title": "HELLFIRE BUY 17 PRODUCTION.",
+          "fields": [
+            {
+              "field": "observation",
+              "label": "Source observation"
+            }
+          ],
+          "fieldCount": 1
+        },
+        {
+          "sourceSystem": "Contract monitor",
+          "sourceRecordId": "CONT_AWD_N0002420C2437_9700_-NONE-_-NONE-",
+          "opportunityId": "auto_usaspending_CONT_AWD_N0002420C2437_9700__NONE___NONE_",
+          "change": "updated",
+          "title": "LHA 9 ADVANCE PROCUREMENT",
+          "fields": [
+            {
+              "field": "observation",
+              "label": "Source observation"
+            }
+          ],
+          "fieldCount": 1
+        },
+        {
+          "sourceSystem": "Contract monitor",
+          "sourceRecordId": "CONT_AWD_N0003024C0100_9700_-NONE-_-NONE-",
+          "opportunityId": "auto_usaspending_CONT_AWD_N0003024C0100_9700__NONE___NONE_",
+          "change": "updated",
+          "title": "FY25 TRIDENT PRODUCTION AND DEPLOYED SYSTEMS SUPPORT",
+          "fields": [
+            {
+              "field": "observation",
+              "label": "Source observation"
+            }
+          ],
+          "fieldCount": 1
+        },
+        {
+          "sourceSystem": "Contract monitor",
+          "sourceRecordId": "CONT_AWD_N0002420C2300_9700_-NONE-_-NONE-",
+          "opportunityId": "auto_usaspending_CONT_AWD_N0002420C2300_9700__NONE___NONE_",
+          "change": "updated",
+          "title": "DETAIL DESIGN AND CONSTRUCTION OF FFG(X) GUIDED MISSILE FRIGATE",
+          "fields": [
+            {
+              "field": "observation",
+              "label": "Source observation"
+            }
+          ],
+          "fieldCount": 1
+        },
+        {
+          "sourceSystem": "Contract monitor",
+          "sourceRecordId": "CONT_AWD_W31P4Q24F0165_9700_W31P4Q23D0003_9700",
+          "opportunityId": "auto_usaspending_CONT_AWD_W31P4Q24F0165_9700_W31P4Q23D0003_9700",
+          "change": "updated",
+          "title": "GUIDED MULTIPLE LAUNCH ROCKET SYSTEM (GMLRS) AND LOW COST REDUCED RANGE PRACTICE ROCKET (LCRRPR) FY25 FULL RATE PRODUCTION LOT 20 DELIVERY ORDER",
+          "fields": [
+            {
+              "field": "observation",
+              "label": "Source observation"
+            }
+          ],
+          "fieldCount": 1
+        },
+        {
+          "sourceSystem": "Contract monitor",
+          "sourceRecordId": "CONT_AWD_FA873023C0025_9700_-NONE-_-NONE-",
+          "opportunityId": "auto_usaspending_CONT_AWD_FA873023C0025_9700__NONE___NONE_",
+          "change": "updated",
+          "title": "E-7A RAPID PROTOTYPING",
+          "fields": [
+            {
+              "field": "observation",
+              "label": "Source observation"
+            }
+          ],
+          "fieldCount": 1
+        },
+        {
+          "sourceSystem": "Contract monitor",
+          "sourceRecordId": "CONT_AWD_W56HZV23C0024_9700_-NONE-_-NONE-",
+          "opportunityId": "auto_usaspending_CONT_AWD_W56HZV23C0024_9700__NONE___NONE_",
+          "change": "updated",
+          "title": "EARLY ORDER MATERIAL IN SUPPORT OF THE FUTURE PURCHASE OF 197 AMPVS AND FACILITY CAPACITY EXPANSION EFFORTS TO INCREASE THE AMPV PRODUCTION RATE TO 197 VEHICLES PER YEAR. SUPPORTS UKRAINE EFFORTS.",
+          "fields": [
+            {
+              "field": "observation",
+              "label": "Source observation"
+            }
+          ],
+          "fieldCount": 1
+        },
+        {
+          "sourceSystem": "Contract monitor",
+          "sourceRecordId": "CONT_AWD_FA821413C0001_9700_-NONE-_-NONE-",
+          "opportunityId": "auto_usaspending_CONT_AWD_FA821413C0001_9700__NONE___NONE_",
+          "change": "updated",
+          "title": "IGF::CL::IGF SYSTEMS ENGINEERING, INTEGRATION AND PROGRAM MANAGEMENT SUPPORT FOR THE ICBM SYSTEMS DIRECTORATE.",
+          "fields": [
+            {
+              "field": "observation",
+              "label": "Source observation"
+            }
+          ],
+          "fieldCount": 1
+        },
+        {
+          "sourceSystem": "Contract monitor",
+          "sourceRecordId": "CONT_AWD_W31P4Q23C0005_9700_-NONE-_-NONE-",
+          "opportunityId": "auto_usaspending_CONT_AWD_W31P4Q23C0005_9700__NONE___NONE_",
+          "change": "updated",
+          "title": "AGMS PRODUCTION",
+          "fields": [
+            {
+              "field": "observation",
+              "label": "Source observation"
+            }
+          ],
+          "fieldCount": 1
+        },
+        {
+          "sourceSystem": "Contract monitor",
+          "sourceRecordId": "CONT_AWD_FA867521C0034_9700_-NONE-_-NONE-",
+          "opportunityId": "auto_usaspending_CONT_AWD_FA867521C0034_9700__NONE___NONE_",
+          "change": "updated",
+          "title": "ADVANCED MEDIUM RANGE AIR TO AIR MISSILE (AMRAAM) PRODUCTION LOTS 34-36",
+          "fields": [
+            {
+              "field": "observation",
+              "label": "Source observation"
+            }
+          ],
+          "fieldCount": 1
+        },
+        {
+          "sourceSystem": "Contract monitor",
+          "sourceRecordId": "CONT_AWD_W58RGZ19C0027_9700_-NONE-_-NONE-",
+          "opportunityId": "auto_usaspending_CONT_AWD_W58RGZ19C0027_9700__NONE___NONE_",
+          "change": "updated",
+          "title": "REQUIREMENT IS FOR THE PROCUREMENT OF PERFORMANCE BASED LOGISTICS SUPPORT SERVICES FOR THE MQ-1C GRAY EAGLE UNMANNED AIRCRAFT SYSTEM.",
+          "fields": [
+            {
+              "field": "observation",
+              "label": "Source observation"
+            }
+          ],
+          "fieldCount": 1
+        },
+        {
+          "sourceSystem": "Contract monitor",
+          "sourceRecordId": "CONT_AWD_FA867515C0022_9700_-NONE-_-NONE-",
+          "opportunityId": "auto_usaspending_CONT_AWD_FA867515C0022_9700__NONE___NONE_",
+          "change": "updated",
+          "title": "ADVANCED MEDIUM RANGE AIR TO AIR MISSILE (AMRAAM) PRODUCTION LOTS 28-30 FY14-16",
+          "fields": [
+            {
+              "field": "observation",
+              "label": "Source observation"
+            }
+          ],
+          "fieldCount": 1
+        },
+        {
+          "sourceSystem": "Contract monitor",
+          "sourceRecordId": "CONT_AWD_W31P4Q19C0076_9700_-NONE-_-NONE-",
+          "opportunityId": "auto_usaspending_CONT_AWD_W31P4Q19C0076_9700__NONE___NONE_",
+          "change": "updated",
+          "title": "JAVELIN PRODUCTION CONTRACT AWARD TO INCLUDE THE ALL UP ROUNDS (AUR), BATTERY COOLANT UNITS (BCU), AND JAVELIN VEHICLE LAUNCHER ELECTRONICS (JVL-E).",
+          "fields": [
+            {
+              "field": "observation",
+              "label": "Source observation"
+            }
+          ],
+          "fieldCount": 1
+        },
+        {
+          "sourceSystem": "Contract monitor",
+          "sourceRecordId": "CONT_AWD_N6852022F7005_9700_N6134019D1010_9700",
+          "opportunityId": "auto_usaspending_CONT_AWD_N6852022F7005_9700_N6134019D1010_9700",
+          "change": "updated",
+          "title": "T45 CLS CMMARS TASK ORDER, MATERIALS - AIRCRAFT MAINTENANCE",
+          "fields": [
+            {
+              "field": "observation",
+              "label": "Source observation"
+            }
+          ],
+          "fieldCount": 1
+        },
+        {
+          "sourceSystem": "Contract monitor",
+          "sourceRecordId": "CONT_AWD_N0002418C2300_9700_-NONE-_-NONE-",
+          "opportunityId": "auto_usaspending_CONT_AWD_N0002418C2300_9700__NONE___NONE_",
+          "change": "updated",
+          "title": "CONSTRUCTION OF LCS FLIGHT 0+ SHIP",
+          "fields": [
+            {
+              "field": "observation",
+              "label": "Source observation"
+            }
+          ],
+          "fieldCount": 1
+        },
+        {
+          "sourceSystem": "Contract monitor",
+          "sourceRecordId": "CONT_AWD_N0002415C4301_9700_-NONE-_-NONE-",
+          "opportunityId": "auto_usaspending_CONT_AWD_N0002415C4301_9700__NONE___NONE_",
+          "change": "updated",
+          "title": "USS COLUMBUS (SSN 762) EOH PLANNING",
+          "fields": [
+            {
+              "field": "observation",
+              "label": "Source observation"
+            }
+          ],
+          "fieldCount": 1
+        },
+        {
+          "sourceSystem": "Contract monitor",
+          "sourceRecordId": "CONT_AWD_FA882321C0001_9700_-NONE-_-NONE-",
+          "opportunityId": "auto_usaspending_CONT_AWD_FA882321C0001_9700__NONE___NONE_",
+          "change": "updated",
+          "title": "SPACE BASED INFRARED SYSTEMS CONTRACTOR LOGISTICS SUPPORT. PRODUCT SUPPORT INTEGRATION, CONTRACT EVOLUTION",
+          "fields": [
+            {
+              "field": "observation",
+              "label": "Source observation"
+            }
+          ],
+          "fieldCount": 1
+        },
+        {
+          "sourceSystem": "Contract monitor",
+          "sourceRecordId": "CONT_AWD_N0002420C5405_9700_-NONE-_-NONE-",
+          "opportunityId": "auto_usaspending_CONT_AWD_N0002420C5405_9700__NONE___NONE_",
+          "change": "updated",
+          "title": "SM-6 BLK IA TACTICAL ALL UP ROUND (AUR)",
+          "fields": [
+            {
+              "field": "observation",
+              "label": "Source observation"
+            }
+          ],
+          "fieldCount": 1
+        },
+        {
+          "sourceSystem": "Contract monitor",
+          "sourceRecordId": "CONT_AWD_N0002421C5408_9700_-NONE-_-NONE-",
+          "opportunityId": "auto_usaspending_CONT_AWD_N0002421C5408_9700__NONE___NONE_",
+          "change": "updated",
+          "title": "GUIDED MISSILE ASSEMBLY AND PIO CEILING TRACKER CLINS AWARD",
+          "fields": [
+            {
+              "field": "observation",
+              "label": "Source observation"
+            }
+          ],
+          "fieldCount": 1
+        },
+        {
+          "sourceSystem": "Contract monitor",
+          "sourceRecordId": "CONT_AWD_N0002420C4312_9700_-NONE-_-NONE-",
+          "opportunityId": "auto_usaspending_CONT_AWD_N0002420C4312_9700__NONE___NONE_",
+          "change": "updated",
+          "title": "PLANNING&MATERIAL (O&MN)",
+          "fields": [
+            {
+              "field": "observation",
+              "label": "Source observation"
+            }
+          ],
+          "fieldCount": 1
+        },
+        {
+          "sourceSystem": "Contract monitor",
+          "sourceRecordId": "CONT_AWD_W58RGZ22C0022_9700_-NONE-_-NONE-",
+          "opportunityId": "auto_usaspending_CONT_AWD_W58RGZ22C0022_9700__NONE___NONE_",
+          "change": "updated",
+          "title": "THIS CONTRACT IS FOR THE FIRM-FIXED PRICE UH-72 LAKOTA HELICOPTER CONTRACTOR LOGISTICS SUPPORT AND ENGINEERING SERVICES WITH A BASE YEAR (6 MONTHS), FOUR ONE-YEAR OPTIONS, AND A SIX MONTH EXTENSION UNDER FAR CLAUSE 52.217-8.",
+          "fields": [
+            {
+              "field": "observation",
+              "label": "Source observation"
+            }
+          ],
+          "fieldCount": 1
+        },
+        {
+          "sourceSystem": "Contract monitor",
+          "sourceRecordId": "CONT_AWD_N0002424C2106_9700_-NONE-_-NONE-",
+          "opportunityId": "auto_usaspending_CONT_AWD_N0002424C2106_9700__NONE___NONE_",
+          "change": "updated",
+          "title": "CVN 75 RCOH ADVANCE PLANNING",
+          "fields": [
+            {
+              "field": "observation",
+              "label": "Source observation"
+            }
+          ],
+          "fieldCount": 1
+        },
+        {
+          "sourceSystem": "Contract monitor",
+          "sourceRecordId": "CONT_AWD_HQ085126FE029_9700_HQ085926DE008_9700",
+          "opportunityId": "auto_usaspending_CONT_AWD_HQ085126FE029_9700_HQ085926DE008_9700",
+          "change": "updated",
+          "title": "NEXT GENERATION MISSILE DEFENSE RADAR",
+          "fields": [
+            {
+              "field": "observation",
+              "label": "Source observation"
+            }
+          ],
+          "fieldCount": 1
+        },
+        {
+          "sourceSystem": "Contract monitor",
+          "sourceRecordId": "CONT_AWD_N0002424C2135_9700_-NONE-_-NONE-",
+          "opportunityId": "auto_usaspending_CONT_AWD_N0002424C2135_9700__NONE___NONE_",
+          "change": "updated",
+          "title": "US SIB SUB SUPPLIER DEVELOPMENT SUPPORT",
+          "fields": [
+            {
+              "field": "observation",
+              "label": "Source observation"
+            }
+          ],
+          "fieldCount": 1
+        },
+        {
+          "sourceSystem": "Contract monitor",
+          "sourceRecordId": "CONT_AWD_N0001925C0071_9700_-NONE-_-NONE-",
+          "opportunityId": "auto_usaspending_CONT_AWD_N0001925C0071_9700__NONE___NONE_",
+          "change": "updated",
+          "title": "FRP20 / FY24 TACTOM AUR (RGM-109E-4AJ) UCA",
+          "fields": [
+            {
+              "field": "observation",
+              "label": "Source observation"
+            }
+          ],
+          "fieldCount": 1
+        },
+        {
+          "sourceSystem": "Contract monitor",
+          "sourceRecordId": "CONT_AWD_W31P4Q19C0092_9700_-NONE-_-NONE-",
+          "opportunityId": "auto_usaspending_CONT_AWD_W31P4Q19C0092_9700__NONE___NONE_",
+          "change": "updated",
+          "title": "ARMY TACTICAL MISSILE SYSTEM (ATACMS) SERVICE LIFE EXTENSION PROGRAM (SLEP) PRODUCTION LOT THREE",
+          "fields": [
+            {
+              "field": "observation",
+              "label": "Source observation"
+            }
+          ],
+          "fieldCount": 1
+        },
+        {
+          "sourceSystem": "Contract monitor",
+          "sourceRecordId": "CONT_AWD_W31P4Q23F0177_9700_W31P4Q23D0014_9700",
+          "opportunityId": "auto_usaspending_CONT_AWD_W31P4Q23F0177_9700_W31P4Q23D0014_9700",
+          "change": "updated",
+          "title": "JAVELIN WEAPONS SYSTEM PRODUCTION IDIQ DELIVERY ORDER: 6300 MISSILES & PRODUCTION RAMP UP",
+          "fields": [
+            {
+              "field": "observation",
+              "label": "Source observation"
+            }
+          ],
+          "fieldCount": 1
+        },
+        {
+          "sourceSystem": "Contract monitor",
+          "sourceRecordId": "CONT_AWD_W31P4Q23C0021_9700_-NONE-_-NONE-",
+          "opportunityId": "auto_usaspending_CONT_AWD_W31P4Q23C0021_9700__NONE___NONE_",
+          "change": "updated",
+          "title": "THIS REQUIREMENT IS FOR THE PROCUREMENT OF FIVE (5) PATRIOT FIRING UNITS IN SUPPORT OF THE COUNTRY OF SWITZERLAND.",
+          "fields": [
+            {
+              "field": "observation",
+              "label": "Source observation"
+            }
+          ],
+          "fieldCount": 1
+        },
+        {
+          "sourceSystem": "Contract monitor",
+          "sourceRecordId": "CONT_AWD_N0002418C4314_9700_-NONE-_-NONE-",
+          "opportunityId": "auto_usaspending_CONT_AWD_N0002418C4314_9700__NONE___NONE_",
+          "change": "updated",
+          "title": "USS BOISE (SSN 764) PLANNING",
+          "fields": [
+            {
+              "field": "observation",
+              "label": "Source observation"
+            }
+          ],
+          "fieldCount": 1
+        },
+        {
+          "sourceSystem": "Contract monitor",
+          "sourceRecordId": "CONT_AWD_W56HZV22C0012_9700_-NONE-_-NONE-",
+          "opportunityId": "auto_usaspending_CONT_AWD_W56HZV22C0012_9700__NONE___NONE_",
+          "change": "updated",
+          "title": "PURPOSE OF THIS AWARD IS A NEW OPTION CONTRACT TO GENERAL DYNAMICS LAND SYSTEMS (GDLS) FOR 5,940,169 HOURS OF SYSTEM TECHNICAL SUPPORT (STS)/SUSTAINMENT SYSTEM TECHNICAL SUPPORT (SSTS).",
+          "fields": [
+            {
+              "field": "observation",
+              "label": "Source observation"
+            }
+          ],
+          "fieldCount": 1
+        },
+        {
+          "sourceSystem": "Contract monitor",
+          "sourceRecordId": "CONT_AWD_HQ014719C0007_9700_-NONE-_-NONE-",
+          "opportunityId": "auto_usaspending_CONT_AWD_HQ014719C0007_9700__NONE___NONE_",
+          "change": "updated",
+          "title": "THAAD FMS KSA PHASE I LONG LEAD ITEMS, OBSOLESCENCE, TOOLING AND TEST EQUIPMENT, KEY PERSONNEL, LINE REQUALIFICATION ACTIVITIES, INITIAL TRAINING DEVELOPMENT, SYSTEM INTEGRATION LAB AND TESTBEDS, THREE-LEVEL MAINTENANCE CONCEPT, EXPORTAB...",
+          "fields": [
+            {
+              "field": "observation",
+              "label": "Source observation"
+            }
+          ],
+          "fieldCount": 1
+        },
+        {
+          "sourceSystem": "Contract monitor",
+          "sourceRecordId": "CONT_AWD_FA812425F1025_9700_FA861118D2850_9700",
+          "opportunityId": "auto_usaspending_CONT_AWD_FA812425F1025_9700_FA861118D2850_9700",
+          "change": "updated",
+          "title": "F119 CY25-CY27 ENGINE SUSTAINMENT",
+          "fields": [
+            {
+              "field": "observation",
+              "label": "Source observation"
+            }
+          ],
+          "fieldCount": 1
+        },
+        {
+          "sourceSystem": "Contract monitor",
+          "sourceRecordId": "CONT_AWD_W58RGZ19C0025_9700_-NONE-_-NONE-",
+          "opportunityId": "auto_usaspending_CONT_AWD_W58RGZ19C0025_9700__NONE___NONE_",
+          "change": "updated",
+          "title": "US ARMY CONTRACTING COMMAND-REDSTONE (ACC-REDSTONE) IS AWARDING THIS CONTRACT W58RGZ-19-C-0025 (AFM II-EAST)FOR THE U.S. ARMY AVIATION AND MISSILE COMMAND (AMCOM) AMCOM LOGISTICS CENTER (ALC) AVIATION FIELD MAINTENANCE (AFM) REQUIREMENT...",
+          "fields": [
+            {
+              "field": "observation",
+              "label": "Source observation"
+            }
+          ],
+          "fieldCount": 1
+        },
+        {
+          "sourceSystem": "Contract monitor",
+          "sourceRecordId": "CONT_AWD_N0002424C2124_9700_-NONE-_-NONE-",
+          "opportunityId": "auto_usaspending_CONT_AWD_N0002424C2124_9700__NONE___NONE_",
+          "change": "updated",
+          "title": "CONTINUATION CONTRACT TO N00024-19-C-2125",
+          "fields": [
+            {
+              "field": "observation",
+              "label": "Source observation"
+            }
+          ],
+          "fieldCount": 1
+        },
+        {
+          "sourceSystem": "Contract monitor",
+          "sourceRecordId": "CONT_AWD_N0001926C0112_9700_-NONE-_-NONE-",
+          "opportunityId": "auto_usaspending_CONT_AWD_N0001926C0112_9700__NONE___NONE_",
+          "change": "updated",
+          "title": "FY26 ANNUAL SUSTAINMENT CONTRACT - UCA AWARD",
+          "fields": [
+            {
+              "field": "observation",
+              "label": "Source observation"
+            }
+          ],
+          "fieldCount": 1
+        },
+        {
+          "sourceSystem": "Contract monitor",
+          "sourceRecordId": "CONT_AWD_W58RGZ24C0031_9700_-NONE-_-NONE-",
+          "opportunityId": "auto_usaspending_CONT_AWD_W58RGZ24C0031_9700__NONE___NONE_",
+          "change": "updated",
+          "title": "GRAY EAGLE PERFORMANCE BASED LOGISTICS 2024-2029",
+          "fields": [
+            {
+              "field": "observation",
+              "label": "Source observation"
+            }
+          ],
+          "fieldCount": 1
+        },
+        {
+          "sourceSystem": "Contract monitor",
+          "sourceRecordId": "CONT_AWD_W519TC25C0032_9700_-NONE-_-NONE-",
+          "opportunityId": "auto_usaspending_CONT_AWD_W519TC25C0032_9700__NONE___NONE_",
+          "change": "updated",
+          "title": "DESIGN, BUILD, AND COMMISSION A MODERN 155MM LOAD, ASSEMBLE, AND PACK (LAP) FACILITY AT THE IOWA ARMY AMMUNITION PLANT (IAAAP)",
+          "fields": [
+            {
+              "field": "observation",
+              "label": "Source observation"
+            }
+          ],
+          "fieldCount": 1
+        },
+        {
+          "sourceSystem": "Contract monitor",
+          "sourceRecordId": "CONT_AWD_W56HZV15C0099_9700_-NONE-_-NONE-",
+          "opportunityId": "auto_usaspending_CONT_AWD_W56HZV15C0099_9700__NONE___NONE_",
+          "change": "updated",
+          "title": "IGF::OT::IGF BRADLEY SYSTEM TECHNICAL SUPPORT AND SUSTAINMENT SYSTEM TECHNICAL SUPPORT",
+          "fields": [
+            {
+              "field": "observation",
+              "label": "Source observation"
+            }
+          ],
+          "fieldCount": 1
+        },
+        {
+          "sourceSystem": "Contract monitor",
+          "sourceRecordId": "CONT_AWD_W519TC24F0083_9700_W52P1J19D0085_9700",
+          "opportunityId": "auto_usaspending_CONT_AWD_W519TC24F0083_9700_W52P1J19D0085_9700",
+          "change": "updated",
+          "title": "NGSW FACILITY CONSTRUCTION SOW AT LCAAP UCO.",
+          "fields": [
+            {
+              "field": "observation",
+              "label": "Source observation"
+            }
+          ],
+          "fieldCount": 1
+        },
+        {
+          "sourceSystem": "Contract monitor",
+          "sourceRecordId": "CONT_AWD_HQ086220C0001_9700_-NONE-_-NONE-",
+          "opportunityId": "auto_usaspending_CONT_AWD_HQ086220C0001_9700__NONE___NONE_",
+          "change": "updated",
+          "title": "SUSTAINMENT OF THAAD RADAR AND DELIVERY OF ONE PPU",
+          "fields": [
+            {
+              "field": "observation",
+              "label": "Source observation"
+            }
+          ],
+          "fieldCount": 1
+        }
+      ],
+      "truncated": true
+    },
     {
       "date": "2026-10-15",
       "generatedAt": "2026-10-15T19:40:23.325Z",
@@ -1617,67 +3034,81 @@
   ],
   "closingSoon": [
     {
-      "opportunityId": "auto_usaspending_CONT_AWD_N0002412C2115_9700__NONE___NONE_",
-      "sourceRecordId": "CONT_AWD_N0002412C2115_9700_-NONE-_-NONE-",
-      "sourceSystem": "USAspending",
-      "title": "SSN 792 LONG LEAD TIME MATERIAL",
-      "date": "2026-10-20"
-    },
-    {
-      "opportunityId": "auto_usaspending_CONT_AWD_FA714624C0019_9700__NONE___NONE_",
-      "sourceRecordId": "CONT_AWD_FA714624C0019_9700_-NONE-_-NONE-",
-      "sourceSystem": "USAspending",
-      "title": "YELLOWFIN PROJECT DATA SUBSCRIPTION AND ANALYSIS SUPPLY FIRST-PARTY DATA WITH ANALYTIC, AND MACHINE LEARNING CAPABILITIES TO TRANSFORM DATA INTO INFORMATION AT SCALE AND SPEED IN SUPPORT OF MISSION ANALYSTS.",
-      "date": "2026-10-21"
-    },
-    {
-      "opportunityId": "auto_usaspending_CONT_AWD_FA867210C0002_9700__NONE___NONE_",
-      "sourceRecordId": "CONT_AWD_FA867210C0002_9700_-NONE-_-NONE-",
-      "sourceSystem": "USAspending",
-      "title": "SMALL DIAMETER BOMB II EMD, PRODUCTION AND SUSTAINMENT",
-      "date": "2026-10-30"
-    },
-    {
-      "opportunityId": "auto_usaspending_CONT_AWD_FA868923F2452_9700_FA868920D2020_9700",
-      "sourceRecordId": "CONT_AWD_FA868923F2452_9700_FA868920D2020_9700",
-      "sourceSystem": "USAspending",
-      "title": "MQ-9 REAPER FMS NETHERLANDS - LOT 2 PRODUCTION",
-      "date": "2026-10-30"
-    },
-    {
-      "opportunityId": "opp_0905c39f1f229d978c14",
-      "sourceRecordId": "opp_0905c39f1f229d978c14",
+      "opportunityId": "opp_4ee47d7c94491f12b9c9",
+      "sourceRecordId": "opp_4ee47d7c94491f12b9c9",
       "sourceSystem": "Normalized capture source packet",
-      "title": "JCWA operational test / evaluation",
-      "date": "2026-10-31"
+      "title": "C5I sustainment bridge",
+      "date": "2026-11-15"
     },
     {
-      "opportunityId": "auto_usaspending_CONT_AWD_FA852626FB002_9700_FA852621D0001_9700",
-      "sourceRecordId": "CONT_AWD_FA852626FB002_9700_FA852621D0001_9700",
-      "sourceSystem": "USAspending",
-      "title": "C-17 GLOBEMASTER III (G3) SUSTAINMENT",
-      "date": "2026-10-31"
+      "opportunityId": "opp_e0d6b6389aefeb516226",
+      "sourceRecordId": "opp_e0d6b6389aefeb516226",
+      "sourceSystem": "Normalized capture source packet",
+      "title": "PMA-263 small UAS services / RS3",
+      "date": "2026-11-18"
     },
     {
-      "opportunityId": "auto_usaspending_CONT_AWD_N0002414C2104_9700__NONE___NONE_",
-      "sourceRecordId": "CONT_AWD_N0002414C2104_9700_-NONE-_-NONE-",
+      "opportunityId": "auto_usaspending_CONT_AWD_HC102826F0010_9700_HC102820D0001_9700",
+      "sourceRecordId": "CONT_AWD_HC102826F0010_9700_HC102820D0001_9700",
       "sourceSystem": "USAspending",
-      "title": "SUBMARINE PLANNING YARD",
-      "date": "2026-10-31"
+      "title": "GSM-O II OPERATIONS AND SUSTAINMENT",
+      "date": "2026-11-18"
     },
     {
-      "opportunityId": "auto_usaspending_CONT_AWD_W91RUS21C0001_9700__NONE___NONE_",
-      "sourceRecordId": "CONT_AWD_W91RUS21C0001_9700_-NONE-_-NONE-",
+      "opportunityId": "auto_usaspending_CONT_AWD_HQ085426PE001_9700__NONE___NONE_",
+      "sourceRecordId": "CONT_AWD_HQ085426PE001_9700_-NONE-_-NONE-",
       "sourceSystem": "USAspending",
-      "title": "OPERATIONS, MAINTENANCE, AND DEFENSE OF ARMY COMMUNICATIONS (OMDAC) IN SOUTHWEST ASIA AND CENTRAL ASIA IN SUPPORT OF THE UNITED STATES NETWORK ENTERPRISE COMMAND (NETCOM).",
-      "date": "2026-10-31"
+      "title": "THE MISSILE DEFENSE AGENCY (MDA) REQUIRES DATA/ARTIFICIAL INTELLIGENCE PLATFORM TO BUILD ANALYTICS AND ARTIFICIAL INTELLIGENCE ENABLED DATA PRODUCTS THAT CREATE DECISION ADVANTAGE FOR THE AGENCY AT THE SECRET AND UNCLASSIFIED LEVEL.",
+      "date": "2026-11-24"
     },
     {
-      "opportunityId": "auto_usaspending_CONT_AWD_W56KGU20F0012_9700_W15P7T19D0157_9700",
-      "sourceRecordId": "CONT_AWD_W56KGU20F0012_9700_W15P7T19D0157_9700",
+      "opportunityId": "auto_usaspending_CONT_AWD_N0016422F3001_9700_N0017819D8739_9700",
+      "sourceRecordId": "CONT_AWD_N0016422F3001_9700_N0017819D8739_9700",
       "sourceSystem": "USAspending",
-      "title": "THE PURPOSE OF THIS ACTION IS TO AWARD A NEW FIVE (5) YEAR TASK ORDER UNDER THE RS3 CONTRACT FOR MODELING AND SIMULATION, ANALYSIS, ENGINEERING, NETWORKING, AND EXPERIMENTATION SUPPORT",
-      "date": "2026-10-31"
+      "title": "REQUIREMENT FOR A FIVE (5) YEAR SOFTWARE DEVELOPMENT AND CYBER ENGINEERING SUPPORT FOR EXPEDITIONARY SYSTEMS AND PRODUCT LINES IN DIRECT SUPPORT OF THE COMMAND, CONTROL, COMMUNICATIONS, INTELLIGENCE, (C3I) AND CYBERSECURITY DIVISION (JXY).",
+      "date": "2026-11-29"
+    },
+    {
+      "opportunityId": "opp_60b750970e99d9cc7c29",
+      "sourceRecordId": "opp_60b750970e99d9cc7c29",
+      "sourceSystem": "Normalized capture source packet",
+      "title": "DLA JDA / Blue Yonder software maintenance",
+      "date": "2026-11-30"
+    },
+    {
+      "opportunityId": "opp_3f19a480851b75873720",
+      "sourceRecordId": "opp_3f19a480851b75873720",
+      "sourceSystem": "Normalized capture source packet",
+      "title": "DLA enterprise infrastructure application support",
+      "date": "2026-11-30"
+    },
+    {
+      "opportunityId": "auto_usaspending_CONT_AWD_W58RGZ19C0025_9700__NONE___NONE_",
+      "sourceRecordId": "CONT_AWD_W58RGZ19C0025_9700_-NONE-_-NONE-",
+      "sourceSystem": "USAspending",
+      "title": "US ARMY CONTRACTING COMMAND-REDSTONE (ACC-REDSTONE) IS AWARDING THIS CONTRACT W58RGZ-19-C-0025 (AFM II-EAST)FOR THE U.S. ARMY AVIATION AND MISSILE COMMAND (AMCOM) AMCOM LOGISTICS CENTER (ALC) AVIATION FIELD MAINTENANCE (AFM) REQUIREMENT...",
+      "date": "2026-11-30"
+    },
+    {
+      "opportunityId": "auto_usaspending_CONT_AWD_FA872625FB025_9700_47QTCA21A0001_4732",
+      "sourceRecordId": "CONT_AWD_FA872625FB025_9700_47QTCA21A0001_4732",
+      "sourceSystem": "USAspending",
+      "title": "UNDEFINITIZED CONTRACT ACTION FOR NEXT GENERATION GATEWAY PHASE II",
+      "date": "2026-11-30"
+    },
+    {
+      "opportunityId": "auto_usaspending_CONT_AWD_W91RUS19F0174_9700_47QTCK18D0003_4732",
+      "sourceRecordId": "CONT_AWD_W91RUS19F0174_9700_47QTCK18D0003_4732",
+      "sourceSystem": "USAspending",
+      "title": "ARMY DEPARTMENT OF DEFENSE INFORMATION NETWORK (DODIN)CYBERSECURITY AND NETWORK OPERATIONS MISSION SUPPORT (ADCNOMS)SERVICES",
+      "date": "2026-11-30"
+    },
+    {
+      "opportunityId": "auto_usaspending_CONT_AWD_N0001924F0066_9700_N6134019D1006_9700",
+      "sourceRecordId": "CONT_AWD_N0001924F0066_9700_N6134019D1006_9700",
+      "sourceSystem": "USAspending",
+      "title": "THE PROCUREMENT OF MQ-9A REAPER UNMANNED AVIATION NAVY AND MARINE CORPS MULTI-MISSION TACTICAL UAS O&M SUPPORT FOR THE CONTINENTAL UNITED STATES (CONUS) AND OUTSIDE THE CONTINENTAL UNITED STATES (OCONUS)",
+      "date": "2026-11-30"
     }
   ]
 }
